@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Noriton Dungeon: Branching Paths</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; }
+        
+        /* 공통 컨테이너 */
+        .container { background: #2c3e50; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; border: 3px solid #34495e; max-width: 90vw; }
+        
+        /* 시작 화면 (Setup) */
+        #setup-screen { display: block; }
+        .input-group { margin: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .input-group label { font-size: 1.2em; color: #f1c40f; }
+        .input-group input { padding: 10px; font-size: 1.2em; width: 100px; text-align: center; border-radius: 5px; border: none; font-weight: bold; }
+        
+        /* 게임 화면 (Game) */
+        #game-screen { display: none; width: 95vw; height: 90vh; flex-direction: column; }
+        
+        /* 트리(맵) 레이아웃 */
+        #board-wrapper { flex-grow: 1; overflow: auto; padding: 20px; background: #22313f; border-radius: 15px; display: flex; align-items: center; justify-content: flex-start; }
+        .tree-path { display: flex; align-items: center; }
+        .tree-branch { display: flex; flex-direction: column; margin-left: 10px; padding-left: 20px; border-left: 4px solid #7f8c8d; gap: 20px; justify-content: center; }
+        
+        /* 타일 디자인 */
+        .tile { width: 65px; height: 65px; margin-right: 15px; border-radius: 12px; display: flex; align-items: center; justify-content: center; position: relative; font-size: 0.8em; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); flex-shrink: 0; box-shadow: inset 0 0 10px rgba(0,0,0,0.2); }
+        .gray { background: #95a5a6; border-bottom: 5px solid #7f8c8d; }
+        .blue { background: #3498db; border-bottom: 5px solid #2980b9; }
+        .red { background: #e74c3c; border-bottom: 5px solid #c0392b; }
+        .green { background: #2ecc71; border-bottom: 5px solid #27ae60; color: black; text-shadow: none; font-size: 1em; }
+        .dark { background: #34495e; color: #95a5a6; border-bottom: 5px solid #2c3e50; }
+        
+        /* 갈림길 선택 하이라이트 */
+        .tile.highlight { box-shadow: 0 0 20px 5px #f1c40f; border: 3px dashed #f1c40f; cursor: pointer; animation: pulse 1s infinite; z-index: 5; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        
+        /* 말 (Pawn) */
+        .pawn { width: 40px; height: 40px; background: #f1c40f; border-radius: 50%; border: 4px solid #000; box-shadow: 0 5px 15px rgba(0,0,0,0.6); position: absolute; z-index: 10; transition: all 0.3s ease; }
+        
+        /* 컨트롤 패널 */
+        .controls { margin-top: 20px; padding: 20px; background: #1a252f; border-radius: 15px; display: flex; gap: 15px; align-items: center; justify-content: center; flex-wrap: wrap; }
+        .controls input { padding: 15px; font-size: 1.2em; width: 80px; text-align: center; border-radius: 8px; border: none; font-weight: bold; }
+        button { padding: 15px 30px; font-size: 1.2em; font-weight: bold; background: #f1c40f; color: #000; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 5px 0 #d4ac0d; transition: 0.1s; }
+        button:active { transform: translateY(3px); box-shadow: 0 2px 0 #d4ac0d; }
+        
+        #log { background: #000; color: #2ecc71; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 1.1em; width: 100%; max-width: 600px; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <div id="setup-screen" class="container">
+        <h1>🛠️ 던전 맵 설정</h1>
+        <p>원하는 던전의 규모를 입력하세요.</p>
+        
+        <div class="input-group">
+            <label>갈림길 개수 (예: 2)</label>
+            <input type="number" id="input-forks" value="2" min="0" max="10">
+        </div>
+        
+        <div class="input-group">
+            <label>목표(GOAL) 개수 (예: 1)</label>
+            <input type="number" id="input-goals" value="1" min="1" max="10">
+        </div>
+        <p style="font-size: 0.8em; color: #aaa;">* 골 개수는 갈림길로 파생된 끝자락 수보다 많을 수 없습니다.</p>
+        
+        <button onclick="startGame()" style="margin-top: 20px;">던전 생성 및 입장</button>
+    </div>
+
+    <div id="game-screen">
+        <div id="board-wrapper">
+            <div id="board"></div>
+        </div>
+
+        <div class="controls">
+            <input type="number" id="step-input" placeholder="칸 수" min="1" max="20">
+            <button onclick="movePawnAction()">이동하기</button>
+            <div id="log">주사위를 굴리고 이동할 칸 수를 입력하세요.</div>
+            <button onclick="returnToSetup()" style="background: #e74c3c; box-shadow: 0 5px 0 #c0392b; margin-left: 20px;">설정으로 돌아가기</button>
+        </div>
+    </div>
+
+    <script>
+        let mapGraph = {};
+        let currentNode = 0;
+        let remainingSteps = 0;
+        let isWaitingForChoice = false;
+        let tileIdCounter = 0;
+
+        // UI 로깅 함수
+        function logMsg(msg) {
+            document.getElementById('log').innerText = `> ${msg}`;
+        }
+
+        // 1. 게임 시작 및 맵 생성
+        function startGame() {
+            const forks = parseInt(document.getElementById('input-forks').value) || 0;
+            const goals = parseInt(document.getElementById('input-goals').value) || 1;
+            
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'flex';
+            
+            generateMapDOM(forks, goals);
+        }
+
+        function generateMapDOM(numForks, numGoals) {
+            tileIdCounter = 0;
+            mapGraph = {};
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+
+            const rootContainer = document.createElement('div');
+            rootContainer.className = 'tree-path';
+            board.appendChild(rootContainer);
+
+            let startTile = createTile('START');
+            rootContainer.appendChild(startTile.el);
+            
+            // 끝자락을 추적하는 배열
+            let openEnds = [{ id: startTile.id, container: rootContainer }];
+
+            // 갈림길(Fork) 생성
+            for(let i = 0; i < numForks; i++) {
+                if(openEnds.length === 0) break;
+                // 무작위 끝자락 선택
+                let idx = Math.floor(Math.random() * openEnds.length);
+                let end = openEnds.splice(idx, 1)[0];
+
+                // 갈래를 담을 세로 컨테이너
+                const branchContainer = document.createElement('div');
+                branchContainer.className = 'tree-branch';
+                end.container.appendChild(branchContainer);
+
+                // 2갈래 길 생성
+                for(let j = 0; j < 2; j++) {
+                    const newPath = document.createElement('div');
+                    newPath.className = 'tree-path';
+                    branchContainer.appendChild(newPath);
+
+                    // 각 갈래마다 2~3개의 타일 배치
+                    let pathLength = Math.floor(Math.random() * 2) + 2;
+                    let lastTileId = end.id;
+                    
+                    for(let k = 0; k < pathLength; k++) {
+                        let newTile = createTile('NORMAL');
+                        newPath.appendChild(newTile.el);
+                        
+                        if(!mapGraph[lastTileId]) mapGraph[lastTileId] = [];
+                        mapGraph[lastTileId].push(newTile.id);
+                        
+                        lastTileId = newTile.id;
+                    }
+                    openEnds.push({ id: lastTileId, container: newPath });
+                }
+            }
+
+            // 끝자락에 골(GOAL) 또는 막다른 길 배치
+            openEnds.sort(() => Math.random() - 0.5); // 섞기
+            for(let i = 0; i < openEnds.length; i++) {
+                let end = openEnds[i];
+                let type = (i < numGoals) ? 'GOAL' : 'DEADEND';
+                
+                let endTile = createTile(type);
+                end.container.appendChild(endTile.el);
+                
+                if(!mapGraph[end.id]) mapGraph[end.id] = [];
+                mapGraph[end.id].push(endTile.id);
+            }
+
+            // 게임 상태 초기화
+            currentNode = 0; 
+            remainingSteps = 0;
+            isWaitingForChoice = false;
+            document.getElementById('step-input').value = '';
+            logMsg("새로운 던전이 생성되었습니다. 시작하세요!");
+            updatePawn();
+        }
+
+        // 타일 생성 헬퍼 함수
+        function createTile(type) {
+            const id = tileIdCounter++;
+            const el = document.createElement('div');
+            
+            let color = '';
+            let text = '';
+            
+            if(type === 'START') { color = 'gray'; text = 'START'; }
+            else if(type === 'GOAL') { color = 'green'; text = 'GOAL'; }
+            else if(type === 'DEADEND') { color = 'dark'; text = '막다른길'; }
+            else {
+                const r = Math.random();
+                if(r < 0.4) color = 'gray';
+                else if(r < 0.7) color = 'blue';
+                else color = 'red';
+            }
+
+            el.className = `tile ${color}`;
+            el.id = `tile-${id}`;
+            if(text) el.innerText = text;
+            
+            // 갈림길 선택 이벤트
+            el.onclick = () => selectBranch(id);
+
+            return { id, el };
+        }
+
+        // 2. 이동 로직 트리거
+        function movePawnAction() {
+            if (isWaitingForChoice) {
+                logMsg("먼저 갈림길에서 이동할 방향의 칸을 클릭하세요!");
+                return;
+            }
+            if (remainingSteps > 0) return; // 이동 중 중복 클릭 방지
+
+            const input = document.getElementById('step-input').value;
+            const steps = parseInt(input);
+            
+            if(isNaN(steps) || steps <= 0) {
+                logMsg("정확한 이동 칸 수를 입력해주세요.");
+                return;
+            }
+
+            remainingSteps = steps;
+            document.getElementById('step-input').value = ''; // 입력창 비우기
+            logMsg(`${steps}칸 이동을 시작합니다...`);
+            
+            stepForward();
+        }
+
+        // 한 칸씩 전진하는 함수
+        function stepForward() {
+            if (remainingSteps <= 0) {
+                processTileArrival(currentNode);
+                return;
+            }
+
+            let children = mapGraph[currentNode] || [];
+            
+            if (children.length === 0) {
+                logMsg("앗, 더 이상 나아갈 길이 없습니다.");
+                processTileArrival(currentNode);
+                remainingSteps = 0;
+                return;
+            }
+
+            if (children.length === 1) {
+                // 외길일 경우 자동 전진
+                currentNode = children[0];
+                remainingSteps--;
+                updatePawn();
+                setTimeout(stepForward, 300); // 0.3초마다 부드럽게 이동
+            } else {
+                // 갈림길 도착!
+                isWaitingForChoice = true;
+                logMsg(`[갈림길] 남은 이동: ${remainingSteps}칸. 반짝이는 칸 중 하나를 클릭하세요!`);
+                children.forEach(childId => {
+                    document.getElementById(`tile-${childId}`).classList.add('highlight');
+                });
+            }
+        }
+
+        // 갈림길에서 플레이어가 칸을 클릭했을 때
+        function selectBranch(targetId) {
+            if (!isWaitingForChoice) return;
+            
+            let children = mapGraph[currentNode] || [];
+            if (children.includes(targetId)) {
+                // 선택한 칸의 하이라이트 제거
+                children.forEach(childId => {
+                    document.getElementById(`tile-${childId}`).classList.remove('highlight');
+                });
+                
+                isWaitingForChoice = false;
+                currentNode = targetId;
+                remainingSteps--;
+                updatePawn();
+                
+                logMsg(`갈림길을 통과했습니다. 계속 이동합니다...`);
+                setTimeout(stepForward, 300);
+            }
+        }
+
+        // 말(Pawn) 위치 업데이트
+        function updatePawn() {
+            let pawn = document.getElementById('my-pawn');
+            if (!pawn) {
+                pawn = document.createElement('div');
+                pawn.id = 'my-pawn';
+                pawn.className = 'pawn';
+            }
+            const currentTile = document.getElementById(`tile-${currentNode}`);
+            if (currentTile) currentTile.appendChild(pawn);
+        }
+
+        // 목적지 도착 시 이벤트 처리
+        function processTileArrival(nodeId) {
+            const tile = document.getElementById(`tile-${nodeId}`);
+            if (tile.classList.contains('green')) {
+                alert("🎉 축하합니다! 목표(GOAL)에 무사히 도착했습니다!\n확인을 누르면 처음 화면으로 돌아갑니다.");
+                returnToSetup();
+            } else if (tile.innerText === '막다른길') {
+                logMsg("막다른 길입니다! 다음 턴에 돌아가야 합니다.");
+            } else {
+                logMsg("이동 완료! 다음 주사위를 굴려주세요.");
+            }
+        }
+
+        // 3. 처음 화면으로 귀환
+        function returnToSetup() {
+            document.getElementById('setup-screen').style.display = 'block';
+            document.getElementById('game-screen').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
