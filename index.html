@@ -2,314 +2,370 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Noriton Dungeon: Branching Paths</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noriton: The Grand Maze</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow-x: hidden; }
+        /* 기본 설정 (스크롤 완벽 방지) */
+        body { font-family: 'Malgun Gothic', sans-serif; background: #0d0d0d; color: #fff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; overflow: hidden; }
         
-        /* 공통 컨테이너 */
-        .container { background: #2c3e50; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; border: 3px solid #34495e; max-width: 90vw; }
+        /* [대문 페이지] */
+        .setup-container { background: #1a1a1a; padding: 30px; border-radius: 20px; border: 4px solid #f1c40f; text-align: center; box-shadow: 0 0 50px rgba(0,0,0,1); z-index: 100; }
+        .input-group { margin: 15px 0; }
+        .input-group label { display: block; margin-bottom: 8px; color: #f1c40f; font-weight: bold; }
+        .input-group input, .input-group select { padding: 8px; width: 150px; text-align: center; font-size: 1.1em; border-radius: 8px; border: 2px solid #f1c40f; background: #000; color: #fff; font-family: inherit; }
         
-        /* 시작 화면 (Setup) */
-        #setup-screen { display: block; }
-        .input-group { margin: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-        .input-group label { font-size: 1.2em; color: #f1c40f; }
-        .input-group input { padding: 10px; font-size: 1.2em; width: 100px; text-align: center; border-radius: 5px; border: none; font-weight: bold; }
-        
-        /* 게임 화면 (Game) */
-        #game-screen { display: none; width: 95vw; height: 90vh; flex-direction: column; }
-        
-        /* 트리(맵) 레이아웃 */
-        #board-wrapper { flex-grow: 1; overflow: auto; padding: 20px; background: #22313f; border-radius: 15px; display: flex; align-items: center; justify-content: flex-start; }
-        .tree-path { display: flex; align-items: center; }
-        .tree-branch { display: flex; flex-direction: column; margin-left: 10px; padding-left: 20px; border-left: 4px solid #7f8c8d; gap: 20px; justify-content: center; }
-        
+        /* [게임 화면] */
+        #game-screen { display: none; flex-direction: column; align-items: center; width: 100%; height: 100%; justify-content: space-between; padding: 10px; box-sizing: border-box; }
+        #board-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; overflow: hidden; background: #111; border: 2px solid #333; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        #board { display: grid; background: #000; margin: auto; padding: 5px; }
+
         /* 타일 디자인 */
-        .tile { width: 65px; height: 65px; margin-right: 15px; border-radius: 12px; display: flex; align-items: center; justify-content: center; position: relative; font-size: 0.8em; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); flex-shrink: 0; box-shadow: inset 0 0 10px rgba(0,0,0,0.2); }
-        .gray { background: #95a5a6; border-bottom: 5px solid #7f8c8d; }
-        .blue { background: #3498db; border-bottom: 5px solid #2980b9; }
-        .red { background: #e74c3c; border-bottom: 5px solid #c0392b; }
-        .green { background: #2ecc71; border-bottom: 5px solid #27ae60; color: black; text-shadow: none; font-size: 1em; }
-        .dark { background: #34495e; color: #95a5a6; border-bottom: 5px solid #2c3e50; }
+        .cell { width: 28px; height: 28px; position: relative; box-sizing: border-box; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .wall { background: #000; } 
+        .path { background: #222f3e; border: 1px solid rgba(255,255,255,0.03); }
         
-        /* 갈림길 선택 하이라이트 */
-        .tile.highlight { box-shadow: 0 0 20px 5px #f1c40f; border: 3px dashed #f1c40f; cursor: pointer; animation: pulse 1s infinite; z-index: 5; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        /* 타일 색상 (이벤트) */
+        .gray { background: #576574; }
+        .blue { background: #2980b9; box-shadow: inset 0 0 10px rgba(0,0,0,0.6); }
+        .red { background: #c0392b; box-shadow: inset 0 0 10px rgba(0,0,0,0.6); }
+        .start { background: #fff !important; color: #000 !important; font-weight: bold; font-size: 0.7em; box-shadow: 0 0 10px #fff; }
+        .goal { background: #1e8449 !important; color: #fff !important; font-weight: bold; font-size: 0.7em; box-shadow: 0 0 15px #2ecc71; }
+
+        /* 안개 모드 (Fog of War) - GOAL까지 완벽하게 가리기 */
+        #board.fog-mode .path:not(.start) { 
+            background: #2f3640 !important; 
+            box-shadow: none !important; 
+            border: 1px solid #111 !important; 
+            color: transparent !important; /* 'G' 텍스트 투명화 */
+            transition: background 0.3s, color 0.3s; 
+        }
+
+        /* 말 & 이동 타일 */
+        .pawn { width: 20px; height: 20px; background: #f1c40f; border-radius: 50%; border: 2px solid #000; z-index: 10; position: absolute; box-shadow: 0 0 12px #f1c40f; transition: all 0.2s; }
+        .movable { cursor: pointer; border: 2px dashed #f1c40f !important; z-index: 5; background: #555 !important; }
+
+        /* 하단 UI */
+        .ui-panel { background: #1a1a1a; padding: 15px; border-radius: 12px; display: flex; gap: 12px; align-items: center; width: 95%; max-width: 900px; border: 1px solid #333; margin-top: 10px; justify-content: center; flex-wrap: wrap; }
+        .ui-panel input { width: 60px; padding: 8px; text-align: center; font-weight: bold; border: 2px solid #f1c40f; background: #000; color: #f1c40f; border-radius: 5px; font-size: 1.1em; }
+        button { padding: 10px 16px; font-weight: bold; background: #f1c40f; color: #000; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 0 #d4ac0d; transition: 0.1s; }
+        button:active { transform: translateY(2px); box-shadow: 0 2px 0 #d4ac0d; }
         
-        /* 말 (Pawn) */
-        .pawn { width: 40px; height: 40px; background: #f1c40f; border-radius: 50%; border: 4px solid #000; box-shadow: 0 5px 15px rgba(0,0,0,0.6); position: absolute; z-index: 10; transition: all 0.3s ease; }
+        /* 토글 버튼 특화 */
+        .btn-fog { background: #9b59b6; box-shadow: 0 4px 0 #8e44ad; color: white; }
+        .btn-fog:active { box-shadow: 0 2px 0 #8e44ad; }
         
-        /* 컨트롤 패널 */
-        .controls { margin-top: 20px; padding: 20px; background: #1a252f; border-radius: 15px; display: flex; gap: 15px; align-items: center; justify-content: center; flex-wrap: wrap; }
-        .controls input { padding: 15px; font-size: 1.2em; width: 80px; text-align: center; border-radius: 8px; border: none; font-weight: bold; }
-        button { padding: 15px 30px; font-size: 1.2em; font-weight: bold; background: #f1c40f; color: #000; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0 5px 0 #d4ac0d; transition: 0.1s; }
-        button:active { transform: translateY(3px); box-shadow: 0 2px 0 #d4ac0d; }
-        
-        #log { background: #000; color: #2ecc71; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 1.1em; width: 100%; max-width: 600px; text-align: left; }
+        #log { flex-basis: 100%; background: #000; color: #2ecc71; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.9em; border-left: 4px solid #2ecc71; text-align: left; }
     </style>
 </head>
 <body>
 
-    <div id="setup-screen" class="container">
-        <h1>🛠️ 던전 맵 설정</h1>
-        <p>원하는 던전의 규모를 입력하세요.</p>
+    <div id="setup-screen" class="setup-container">
+        <h1 style="color:#f1c40f; margin-top:0;">🏰 노리톤 대미궁</h1>
         
         <div class="input-group">
-            <label>갈림길 개수 (예: 2)</label>
-            <input type="number" id="input-forks" value="2" min="0" max="10">
+            <label>미궁 규모</label>
+            <select id="map-size">
+                <option value="small">작음 (빠른 탐사)</option>
+                <option value="medium">중간 (표준 탐사)</option>
+                <option value="large" selected>큼 (화면 꽉 차게)</option>
+            </select>
         </div>
         
         <div class="input-group">
-            <label>목표(GOAL) 개수 (예: 1)</label>
-            <input type="number" id="input-goals" value="1" min="1" max="10">
+            <label>갈림길 생성 개수</label>
+            <input type="number" id="fork-count" value="8" min="1" max="30">
         </div>
-        <p style="font-size: 0.8em; color: #aaa;">* 골 개수는 갈림길로 파생된 끝자락 수보다 많을 수 없습니다.</p>
         
-        <button onclick="startGame()" style="margin-top: 20px;">던전 생성 및 입장</button>
+        <div class="input-group">
+            <label>목표(GOAL) 개수</label>
+            <input type="number" id="goal-count" value="3" min="1" max="10">
+        </div>
+        <button onclick="startGame()" style="margin-top: 10px; padding: 12px 25px; font-size: 1.1em;">미궁 생성 및 입장</button>
     </div>
 
     <div id="game-screen">
         <div id="board-wrapper">
             <div id="board"></div>
         </div>
-
-        <div class="controls">
-            <input type="number" id="step-input" placeholder="칸 수" min="1" max="20">
-            <button onclick="movePawnAction()">이동하기</button>
-            <div id="log">주사위를 굴리고 이동할 칸 수를 입력하세요.</div>
-            <button onclick="returnToSetup()" style="background: #e74c3c; box-shadow: 0 5px 0 #c0392b; margin-left: 20px;">설정으로 돌아가기</button>
+        
+        <div class="ui-panel">
+            <button id="fog-btn" class="btn-fog" onclick="toggleFog()">발판 숨기기 (ON)</button>
+            <div style="color:#f1c40f; font-weight:bold; font-size:1.1em; margin: 0 10px;">행동력: <span id="steps-left">0</span></div>
+            <input type="number" id="dice-input" placeholder="0">
+            <button onclick="applySteps()">이동력 주입</button>
+            <button onclick="resetMaze()" style="background:#c0392b; box-shadow:0 4px 0 #922b21; color:#fff; margin-left: auto;">맵 재설계</button>
+            
+            <div id="log">안전하게 진입했습니다. 행동력을 입력하세요. [발판 숨기기]로 미궁 전체를 가릴 수 있습니다.</div>
         </div>
     </div>
 
     <script>
-        let mapGraph = {};
-        let currentNode = 0;
-        let remainingSteps = 0;
-        let isWaitingForChoice = false;
-        let tileIdCounter = 0;
+        const TILE_SIZE = 28;
+        let COLS = 30;
+        let ROWS = 20;
+        
+        let grid = [];
+        let playerPos = { x: 1, y: 1 };
+        let moveSteps = 0;
+        let goalList = [];
+        let allPaths = [];
+        let isFogOn = false;
 
-        // UI 로깅 함수
-        function logMsg(msg) {
-            document.getElementById('log').innerText = `> ${msg}`;
-        }
-
-        // 1. 게임 시작 및 맵 생성
         function startGame() {
-            const forks = parseInt(document.getElementById('input-forks').value) || 0;
-            const goals = parseInt(document.getElementById('input-goals').value) || 1;
+            // 브라우저 해상도에 맞춘 최대(큼) 사이즈 계산 (스크롤 없는 꽉 찬 화면)
+            const maxCols = Math.max(20, Math.floor(window.innerWidth * 0.95 / TILE_SIZE));
+            const maxRows = Math.max(15, Math.floor(window.innerHeight * 0.75 / TILE_SIZE));
+
+            // 맵 사이즈 설정 적용
+            const sizeMap = {
+                'small': { c: Math.floor(maxCols * 0.5), r: Math.floor(maxRows * 0.5) },
+                'medium': { c: Math.floor(maxCols * 0.75), r: Math.floor(maxRows * 0.75) },
+                'large': { c: maxCols, r: maxRows }
+            };
+            const selectedSize = document.getElementById('map-size').value;
+            COLS = sizeMap[selectedSize].c;
+            ROWS = sizeMap[selectedSize].r;
+
+            const forks = parseInt(document.getElementById('fork-count').value) || 5;
+            const goals = parseInt(document.getElementById('goal-count').value) || 2;
             
             document.getElementById('setup-screen').style.display = 'none';
             document.getElementById('game-screen').style.display = 'flex';
             
-            generateMapDOM(forks, goals);
+            // 입장 시 안개 모드 초기화
+            isFogOn = false;
+            document.getElementById('board').classList.remove('fog-mode');
+            document.getElementById('fog-btn').innerText = "발판 숨기기 (ON)";
+            document.getElementById('fog-btn').style.background = "#9b59b6";
+            document.getElementById('fog-btn').style.boxShadow = "0 4px 0 #8e44ad";
+            
+            buildMaze(forks, goals);
         }
 
-        function generateMapDOM(numForks, numGoals) {
-            tileIdCounter = 0;
-            mapGraph = {};
+        function buildMaze(totalForks, totalGoals) {
             const board = document.getElementById('board');
+            board.style.gridTemplateColumns = `repeat(${COLS}, ${TILE_SIZE}px)`;
+            board.style.gridTemplateRows = `repeat(${ROWS}, ${TILE_SIZE}px)`;
             board.innerHTML = '';
-
-            const rootContainer = document.createElement('div');
-            rootContainer.className = 'tree-path';
-            board.appendChild(rootContainer);
-
-            let startTile = createTile('START');
-            rootContainer.appendChild(startTile.el);
             
-            // 끝자락을 추적하는 배열
-            let openEnds = [{ id: startTile.id, container: rootContainer }];
+            grid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+            goalList = [];
+            allPaths = [];
 
-            // 갈림길(Fork) 생성
-            for(let i = 0; i < numForks; i++) {
-                if(openEnds.length === 0) break;
-                // 무작위 끝자락 선택
-                let idx = Math.floor(Math.random() * openEnds.length);
-                let end = openEnds.splice(idx, 1)[0];
+            let startY = Math.floor(ROWS / 2);
 
-                // 갈래를 담을 세로 컨테이너
-                const branchContainer = document.createElement('div');
-                branchContainer.className = 'tree-branch';
-                end.container.appendChild(branchContainer);
+            // 1. 메인 척추 경로 (오른쪽으로)
+            let mainRoot = createTrunkPath(1, startY);
+            allPaths.push(...mainRoot);
 
-                // 2갈래 길 생성
-                for(let j = 0; j < 2; j++) {
-                    const newPath = document.createElement('div');
-                    newPath.className = 'tree-path';
-                    branchContainer.appendChild(newPath);
+            // 2. 갈림길 생성
+            let forksCreated = 0;
+            let attempts = 0;
+            let branches = [];
 
-                    // 각 갈래마다 2~3개의 타일 배치
-                    let pathLength = Math.floor(Math.random() * 2) + 2;
-                    let lastTileId = end.id;
-                    
-                    for(let k = 0; k < pathLength; k++) {
-                        let newTile = createTile('NORMAL');
-                        newPath.appendChild(newTile.el);
-                        
-                        if(!mapGraph[lastTileId]) mapGraph[lastTileId] = [];
-                        mapGraph[lastTileId].push(newTile.id);
-                        
-                        lastTileId = newTile.id;
+            while(forksCreated < totalForks && attempts < 300) {
+                let basePoint = allPaths[Math.floor(Math.random() * allPaths.length)];
+                let branchLen = Math.floor(Math.random() * 10) + 5;
+                
+                let newBranch = createBranchPath(basePoint.x, basePoint.y, branchLen);
+                if(newBranch.length > 2) {
+                    allPaths.push(...newBranch);
+                    branches.push(newBranch);
+                    forksCreated++;
+                }
+                attempts++;
+            }
+
+            // 3. 목표 지점(GOAL) 배치
+            branches.sort((a, b) => b.length - a.length);
+            for(let i = 0; i < totalGoals && i < branches.length; i++) {
+                goalList.push(branches[i][branches[i].length - 1]);
+            }
+            if(goalList.length < totalGoals && mainRoot.length > 0) {
+                goalList.push(mainRoot[mainRoot.length - 1]);
+            }
+            if(goalList.length === 0) goalList.push(mainRoot[mainRoot.length - 1]);
+
+            // 4. 발판 비율 1:1:1 균등 분배 로직
+            let pathCells = [];
+            for(let y = 0; y < ROWS; y++) {
+                for(let x = 0; x < COLS; x++) {
+                    const isStart = (x === 1 && y === startY);
+                    const isGoal = goalList.find(g => g.x === x && g.y === y);
+                    if(grid[y][x] === 1 && !isStart && !isGoal) {
+                        pathCells.push({x, y});
                     }
-                    openEnds.push({ id: lastTileId, container: newPath });
                 }
             }
 
-            // 끝자락에 골(GOAL) 또는 막다른 길 배치
-            openEnds.sort(() => Math.random() - 0.5); // 섞기
-            for(let i = 0; i < openEnds.length; i++) {
-                let end = openEnds[i];
-                let type = (i < numGoals) ? 'GOAL' : 'DEADEND';
-                
-                let endTile = createTile(type);
-                end.container.appendChild(endTile.el);
-                
-                if(!mapGraph[end.id]) mapGraph[end.id] = [];
-                mapGraph[end.id].push(endTile.id);
-            }
+            let colorPool = [];
+            let third = Math.floor(pathCells.length / 3);
+            let remainder = pathCells.length % 3;
+            
+            for(let i=0; i<third; i++) { colorPool.push('blue', 'red', 'gray'); }
+            let extras = ['blue', 'red', 'gray'].sort(() => Math.random() - 0.5);
+            for(let i=0; i<remainder; i++) { colorPool.push(extras[i]); }
+            colorPool.sort(() => Math.random() - 0.5); // 완전히 섞기
 
-            // 게임 상태 초기화
-            currentNode = 0; 
-            remainingSteps = 0;
-            isWaitingForChoice = false;
-            document.getElementById('step-input').value = '';
-            logMsg("새로운 던전이 생성되었습니다. 시작하세요!");
+            // 5. 화면 렌더링
+            let colorIndex = 0;
+            for(let y = 0; y < ROWS; y++) {
+                for(let x = 0; x < COLS; x++) {
+                    const cell = document.createElement('div');
+                    cell.id = `c-${x}-${y}`;
+                    cell.className = 'cell ' + (grid[y][x] === 1 ? 'path' : 'wall');
+                    
+                    if(grid[y][x] === 1) {
+                        const isStart = (x === 1 && y === startY);
+                        const isGoal = goalList.find(g => g.x === x && g.y === y);
+                        
+                        if(isStart) { 
+                            cell.classList.add('start'); cell.innerText = "S"; 
+                            playerPos = {x, y}; 
+                        } else if(isGoal) { 
+                            cell.classList.add('goal'); cell.innerText = "G"; 
+                        } else {
+                            cell.classList.add(colorPool[colorIndex]);
+                            colorIndex++;
+                        }
+                    }
+                    board.appendChild(cell);
+                }
+            }
             updatePawn();
+            logTxt(`미궁 크기 [${COLS}x${ROWS}] 생성 완료! 이벤트 타일이 균등 배치되었습니다.`);
         }
 
-        // 타일 생성 헬퍼 함수
-        function createTile(type) {
-            const id = tileIdCounter++;
-            const el = document.createElement('div');
-            
-            let color = '';
-            let text = '';
-            
-            if(type === 'START') { color = 'gray'; text = 'START'; }
-            else if(type === 'GOAL') { color = 'green'; text = 'GOAL'; }
-            else if(type === 'DEADEND') { color = 'dark'; text = '막다른길'; }
-            else {
-                const r = Math.random();
-                if(r < 0.4) color = 'gray';
-                else if(r < 0.7) color = 'blue';
-                else color = 'red';
+        function createTrunkPath(sx, sy) {
+            let path = [{x: sx, y: sy}];
+            grid[sy][sx] = 1;
+            let cx = sx, cy = sy;
+            while(cx < COLS - 3) {
+                let dirs = [{x:1, y:0}, {x:1, y:0}, {x:1, y:0}, {x:0, y:1}, {x:0, y:-1}].sort(() => Math.random() - 0.5);
+                let moved = false;
+                for(let d of dirs) {
+                    let nx = cx + d.x, ny = cy + d.y;
+                    if(nx > 0 && nx < COLS - 1 && ny > 0 && ny < ROWS - 1 && grid[ny][nx] === 0) {
+                        if(countNeighbors(nx, ny) === 1) {
+                            grid[ny][nx] = 1;
+                            cx = nx; cy = cy; // 수정: cy=ny로 해야 이동됨
+                            cx = nx; cy = ny; 
+                            path.push({x: cx, y: cy});
+                            moved = true;
+                            break;
+                        }
+                    }
+                }
+                if(!moved) break;
             }
-
-            el.className = `tile ${color}`;
-            el.id = `tile-${id}`;
-            if(text) el.innerText = text;
-            
-            // 갈림길 선택 이벤트
-            el.onclick = () => selectBranch(id);
-
-            return { id, el };
+            return path;
         }
 
-        // 2. 이동 로직 트리거
-        function movePawnAction() {
-            if (isWaitingForChoice) {
-                logMsg("먼저 갈림길에서 이동할 방향의 칸을 클릭하세요!");
-                return;
+        function createBranchPath(sx, sy, maxLen) {
+            let path = [];
+            let cx = sx, cy = sy;
+            for(let i = 0; i < maxLen; i++) {
+                let dirs = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}].sort(() => Math.random() - 0.5);
+                let moved = false;
+                for(let d of dirs) {
+                    let nx = cx + d.x, ny = cy + d.y;
+                    if(nx > 0 && nx < COLS - 1 && ny > 0 && ny < ROWS - 1 && grid[ny][nx] === 0) {
+                        if(countNeighbors(nx, ny) === 1) {
+                            grid[ny][nx] = 1;
+                            cx = nx; cy = ny;
+                            path.push({x: cx, y: cy});
+                            moved = true;
+                            break;
+                        }
+                    }
+                }
+                if(!moved) break;
             }
-            if (remainingSteps > 0) return; // 이동 중 중복 클릭 방지
-
-            const input = document.getElementById('step-input').value;
-            const steps = parseInt(input);
-            
-            if(isNaN(steps) || steps <= 0) {
-                logMsg("정확한 이동 칸 수를 입력해주세요.");
-                return;
-            }
-
-            remainingSteps = steps;
-            document.getElementById('step-input').value = ''; // 입력창 비우기
-            logMsg(`${steps}칸 이동을 시작합니다...`);
-            
-            stepForward();
+            return path;
         }
 
-        // 한 칸씩 전진하는 함수
-        function stepForward() {
-            if (remainingSteps <= 0) {
-                processTileArrival(currentNode);
-                return;
-            }
+        function countNeighbors(x, y) {
+            let count = 0;
+            if(grid[y-1] && grid[y-1][x] === 1) count++;
+            if(grid[y+1] && grid[y+1][x] === 1) count++;
+            if(grid[y][x-1] === 1) count++;
+            if(grid[y][x+1] === 1) count++;
+            return count;
+        }
 
-            let children = mapGraph[currentNode] || [];
+        // 안개 토글 시스템
+        function toggleFog() {
+            isFogOn = !isFogOn;
+            const board = document.getElementById('board');
+            const btn = document.getElementById('fog-btn');
             
-            if (children.length === 0) {
-                logMsg("앗, 더 이상 나아갈 길이 없습니다.");
-                processTileArrival(currentNode);
-                remainingSteps = 0;
-                return;
-            }
-
-            if (children.length === 1) {
-                // 외길일 경우 자동 전진
-                currentNode = children[0];
-                remainingSteps--;
-                updatePawn();
-                setTimeout(stepForward, 300); // 0.3초마다 부드럽게 이동
+            if(isFogOn) {
+                board.classList.add('fog-mode');
+                btn.innerText = "발판 보이기 (OFF)";
+                btn.style.background = "#e67e22";
+                btn.style.boxShadow = "0 4px 0 #d35400";
+                logTxt("안개가 미궁을 덮습니다. 골(GOAL)을 포함한 모든 발판이 숨겨졌습니다.");
             } else {
-                // 갈림길 도착!
-                isWaitingForChoice = true;
-                logMsg(`[갈림길] 남은 이동: ${remainingSteps}칸. 반짝이는 칸 중 하나를 클릭하세요!`);
-                children.forEach(childId => {
-                    document.getElementById(`tile-${childId}`).classList.add('highlight');
-                });
+                board.classList.remove('fog-mode');
+                btn.innerText = "발판 숨기기 (ON)";
+                btn.style.background = "#9b59b6";
+                btn.style.boxShadow = "0 4px 0 #8e44ad";
+                logTxt("안개가 걷혔습니다. 미궁의 진정한 모습이 드러납니다.");
             }
         }
 
-        // 갈림길에서 플레이어가 칸을 클릭했을 때
-        function selectBranch(targetId) {
-            if (!isWaitingForChoice) return;
-            
-            let children = mapGraph[currentNode] || [];
-            if (children.includes(targetId)) {
-                // 선택한 칸의 하이라이트 제거
-                children.forEach(childId => {
-                    document.getElementById(`tile-${childId}`).classList.remove('highlight');
-                });
-                
-                isWaitingForChoice = false;
-                currentNode = targetId;
-                remainingSteps--;
-                updatePawn();
-                
-                logMsg(`갈림길을 통과했습니다. 계속 이동합니다...`);
-                setTimeout(stepForward, 300);
-            }
+        function applySteps() {
+            const val = parseInt(document.getElementById('dice-input').value);
+            if(isNaN(val) || val <= 0) return;
+            moveSteps = val;
+            document.getElementById('steps-left').innerText = moveSteps;
+            document.getElementById('dice-input').value = '';
+            showMovable();
         }
 
-        // 말(Pawn) 위치 업데이트
+        function showMovable() {
+            document.querySelectorAll('.movable').forEach(el => { el.classList.remove('movable'); el.onclick = null; });
+            if(moveSteps <= 0) { checkTile(); return; }
+
+            [{x:0, y:1}, {x:0, y:-1}, {x:1, y:0}, {x:-1, y:0}].forEach(d => {
+                let nx = playerPos.x + d.x, ny = playerPos.y + d.y;
+                if(nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && grid[ny][nx] === 1) {
+                    const el = document.getElementById(`c-${nx}-${ny}`);
+                    el.classList.add('movable');
+                    el.onclick = () => { 
+                        playerPos = {x: nx, y: ny}; 
+                        moveSteps--; 
+                        document.getElementById('steps-left').innerText = moveSteps; 
+                        updatePawn(); 
+                        showMovable(); 
+                    };
+                }
+            });
+        }
+
         function updatePawn() {
-            let pawn = document.getElementById('my-pawn');
-            if (!pawn) {
-                pawn = document.createElement('div');
-                pawn.id = 'my-pawn';
-                pawn.className = 'pawn';
-            }
-            const currentTile = document.getElementById(`tile-${currentNode}`);
-            if (currentTile) currentTile.appendChild(pawn);
+            let p = document.getElementById('pawn') || document.createElement('div');
+            p.id = 'pawn'; p.className = 'pawn';
+            const currentCell = document.getElementById(`c-${playerPos.x}-${playerPos.y}`);
+            if(currentCell) currentCell.appendChild(p);
         }
 
-        // 목적지 도착 시 이벤트 처리
-        function processTileArrival(nodeId) {
-            const tile = document.getElementById(`tile-${nodeId}`);
-            if (tile.classList.contains('green')) {
-                alert("🎉 축하합니다! 목표(GOAL)에 무사히 도착했습니다!\n확인을 누르면 처음 화면으로 돌아갑니다.");
-                returnToSetup();
-            } else if (tile.innerText === '막다른길') {
-                logMsg("막다른 길입니다! 다음 턴에 돌아가야 합니다.");
-            } else {
-                logMsg("이동 완료! 다음 주사위를 굴려주세요.");
+        function checkTile() {
+            const isG = goalList.find(g => g.x === playerPos.x && g.y === playerPos.y);
+            if(isG) { 
+                alert("🎉 축하합니다! GOAL에 무사히 도달했습니다!"); 
+                resetMaze(); 
+                return; 
             }
+            
+            const cl = document.getElementById(`c-${playerPos.x}-${playerPos.y}`).classList;
+            if(cl.contains('blue')) logTxt("턴 종료: [파란색] 행운이 따릅니다! 파밍 판정을 하세요.");
+            else if(cl.contains('red')) logTxt("턴 종료: [빨간색] 위험합니다! Health 기반 회피 판정을 하세요.");
+            else logTxt("턴 종료: 주변은 고요한 복도입니다. 다음 주사위를 굴리세요.");
         }
 
-        // 3. 처음 화면으로 귀환
-        function returnToSetup() {
-            document.getElementById('setup-screen').style.display = 'block';
-            document.getElementById('game-screen').style.display = 'none';
-        }
+        function logTxt(m) { document.getElementById('log').innerText = "> " + m; }
+        function resetMaze() { document.getElementById('setup-screen').style.display = 'block'; document.getElementById('game-screen').style.display = 'none'; }
     </script>
 </body>
 </html>
