@@ -5,39 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Noriton: The Grand Maze</title>
     <style>
-        /* 기본 설정 (스크롤 완벽 방지) */
+        /* ══════════════════════════════════════
+           기본 설정
+        ══════════════════════════════════════ */
+        * { box-sizing: border-box; }
         body { font-family: 'Malgun Gothic', sans-serif; background: #0d0d0d; color: #fff; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; width: 100vw; overflow: hidden; }
-        
-        /* [대문 페이지] */
+
+        /* ══════════════════════════════════════
+           [대문 페이지]
+        ══════════════════════════════════════ */
         .setup-container { background: #1a1a1a; padding: 30px; border-radius: 20px; border: 4px solid #f1c40f; text-align: center; box-shadow: 0 0 50px rgba(0,0,0,1); z-index: 100; }
         .input-group { margin: 15px 0; }
         .input-group label { display: block; margin-bottom: 8px; color: #f1c40f; font-weight: bold; }
         .input-group input, .input-group select { padding: 8px; width: 150px; text-align: center; font-size: 1.1em; border-radius: 8px; border: 2px solid #f1c40f; background: #000; color: #fff; font-family: inherit; }
-        
-        /* [게임 화면] */
-        #game-screen { display: none; flex-direction: column; align-items: center; width: 100%; height: 100%; justify-content: space-between; padding: 10px; box-sizing: border-box; }
+
+        /* ══════════════════════════════════════
+           [맵(미궁) 게임 화면]
+        ══════════════════════════════════════ */
+        #game-screen { display: none; flex-direction: column; align-items: center; width: 100%; height: 100%; justify-content: space-between; padding: 10px; }
         #board-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; overflow: hidden; background: #111; border: 2px solid #333; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
         #board { display: grid; background: #000; margin: auto; padding: 5px; }
 
         /* 타일 디자인 */
         .cell { width: 28px; height: 28px; position: relative; box-sizing: border-box; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .wall { background: #000; } 
+        .wall { background: #000; }
         .path { background: #222f3e; border: 1px solid rgba(255,255,255,0.03); }
-        
-        /* 타일 색상 (이벤트) */
         .gray { background: #576574; }
         .blue { background: #2980b9; box-shadow: inset 0 0 10px rgba(0,0,0,0.6); }
         .red { background: #c0392b; box-shadow: inset 0 0 10px rgba(0,0,0,0.6); }
         .start { background: #fff !important; color: #000 !important; font-weight: bold; font-size: 0.7em; box-shadow: 0 0 10px #fff; }
         .goal { background: #1e8449 !important; color: #fff !important; font-weight: bold; font-size: 0.7em; box-shadow: 0 0 15px #2ecc71; }
 
-        /* 안개 모드 (Fog of War) - GOAL까지 완벽하게 가리기 */
-        #board.fog-mode .path:not(.start) { 
-            background: #2f3640 !important; 
-            box-shadow: none !important; 
-            border: 1px solid #111 !important; 
-            color: transparent !important; /* 'G' 텍스트 투명화 */
-            transition: background 0.3s, color 0.3s; 
+        /* 안개 모드 */
+        #board.fog-mode .path:not(.start) {
+            background: #2f3640 !important;
+            box-shadow: none !important;
+            border: 1px solid #111 !important;
+            color: transparent !important;
+            transition: background 0.3s, color 0.3s;
         }
 
         /* 말 & 이동 타일 */
@@ -47,325 +52,946 @@
         /* 하단 UI */
         .ui-panel { background: #1a1a1a; padding: 15px; border-radius: 12px; display: flex; gap: 12px; align-items: center; width: 95%; max-width: 900px; border: 1px solid #333; margin-top: 10px; justify-content: center; flex-wrap: wrap; }
         .ui-panel input { width: 60px; padding: 8px; text-align: center; font-weight: bold; border: 2px solid #f1c40f; background: #000; color: #f1c40f; border-radius: 5px; font-size: 1.1em; }
-        button { padding: 10px 16px; font-weight: bold; background: #f1c40f; color: #000; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 0 #d4ac0d; transition: 0.1s; }
+        button { padding: 10px 16px; font-weight: bold; background: #f1c40f; color: #000; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 4px 0 #d4ac0d; transition: 0.1s; font-family: inherit; }
         button:active { transform: translateY(2px); box-shadow: 0 2px 0 #d4ac0d; }
-        
-        /* 토글 버튼 특화 */
         .btn-fog { background: #9b59b6; box-shadow: 0 4px 0 #8e44ad; color: white; }
         .btn-fog:active { box-shadow: 0 2px 0 #8e44ad; }
-        
+        .btn-danger { background: #c0392b; box-shadow: 0 4px 0 #922b21; color: #fff; }
+        .btn-danger:active { box-shadow: 0 2px 0 #922b21; }
+        .btn-battle { background: #e67e22; box-shadow: 0 4px 0 #ca6f1e; color: #fff; }
+        .btn-battle:active { box-shadow: 0 2px 0 #ca6f1e; }
         #log { flex-basis: 100%; background: #000; color: #2ecc71; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.9em; border-left: 4px solid #2ecc71; text-align: left; }
+
+        /* ══════════════════════════════════════
+           [배틀맵 설정 화면]
+        ══════════════════════════════════════ */
+        #battle-setup-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+        .battle-setup-box {
+            background: #1a1a1a;
+            padding: 32px 40px;
+            border-radius: 20px;
+            border: 4px solid #e67e22;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(230,126,34,0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+        .battle-setup-box h2 { color: #e67e22; margin-top: 0; font-size: 1.6em; }
+        .battle-setup-box .sub-title {
+            color: #aaa;
+            font-size: 0.92em;
+            margin-bottom: 20px;
+            line-height: 1.6;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px 14px;
+            background: #111;
+            text-align: left;
+        }
+        .battle-input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .battle-input-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+        .battle-input-item label { color: #f1c40f; font-size: 0.9em; font-weight: bold; }
+        .battle-input-item input {
+            width: 100px;
+            padding: 8px;
+            text-align: center;
+            font-size: 1.1em;
+            border-radius: 8px;
+            border: 2px solid #e67e22;
+            background: #000;
+            color: #fff;
+            font-family: inherit;
+        }
+        .battle-setup-btns { display: flex; gap: 12px; justify-content: center; margin-top: 6px; }
+
+        /* ══════════════════════════════════════
+           [배틀맵 게임 화면]
+        ══════════════════════════════════════ */
+        #battle-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            padding: 8px;
+        }
+        #battle-board-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            overflow: auto;
+            background: #0a0a0a;
+            border: 2px solid #e67e22;
+            border-radius: 10px;
+            box-shadow: 0 0 25px rgba(230,126,34,0.2);
+        }
+        #battle-board {
+            display: grid;
+            background: #1a1a1a;
+            margin: auto;
+            padding: 4px;
+            border: 2px solid #333;
+        }
+
+        /* 배틀맵 타일 */
+        .b-cell {
+            width: 48px;
+            height: 48px;
+            position: relative;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #2c2c2c;
+            background: #1e1e2e;
+            flex-shrink: 0;
+            transition: background 0.15s;
+        }
+        .b-cell:hover { border-color: #555; }
+
+        /* 방해물 칸 */
+        .b-cell.obstacle {
+            background: #111 !important;
+            cursor: default;
+        }
+        .b-cell.obstacle::before,
+        .b-cell.obstacle::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 70%;
+            background: #c0392b;
+            border-radius: 2px;
+        }
+        .b-cell.obstacle::before { transform: rotate(45deg); }
+        .b-cell.obstacle::after  { transform: rotate(-45deg); }
+
+        /* 드래그 오버 하이라이트 */
+        .b-cell.drag-over {
+            background: #2e4a2e !important;
+            border-color: #2ecc71 !important;
+        }
+        .b-cell.drag-out-zone {
+            /* 칸 밖 드래그 영역 표시용 - 실제로는 body에서 처리 */
+        }
+
+        /* ── 배틀 유닛 ── */
+        .b-unit {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.85em;
+            cursor: grab;
+            user-select: none;
+            z-index: 10;
+            border: 2px solid rgba(0,0,0,0.5);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .b-unit:active { cursor: grabbing; }
+        .b-unit.dragging {
+            opacity: 0.4;
+            transform: scale(0.9);
+        }
+
+        /* 플레이어 */
+        .b-unit.player {
+            background: radial-gradient(circle at 35% 35%, #58d68d, #1e8449);
+            color: #fff;
+            box-shadow: 0 0 12px #2ecc71, 0 2px 8px rgba(0,0,0,0.6);
+            font-size: 1em;
+        }
+        /* 아군 */
+        .b-unit.ally {
+            background: radial-gradient(circle at 35% 35%, #5dade2, #1a5276);
+            color: #fff;
+            box-shadow: 0 0 10px #3498db, 0 2px 8px rgba(0,0,0,0.6);
+        }
+        /* 적군 */
+        .b-unit.enemy {
+            background: radial-gradient(circle at 35% 35%, #e74c3c, #7b241c);
+            color: #fff;
+            box-shadow: 0 0 10px #c0392b, 0 2px 8px rgba(0,0,0,0.6);
+        }
+
+        /* 배틀맵 하단 UI */
+        #battle-ui {
+            background: #1a1a1a;
+            padding: 10px 16px;
+            border-radius: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            width: 95%;
+            border: 1px solid #e67e22;
+            margin-top: 8px;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        #battle-ui .legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+        #battle-ui .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.85em; }
+        .legend-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+        .legend-dot.player { background: #2ecc71; box-shadow: 0 0 6px #2ecc71; }
+        .legend-dot.ally   { background: #3498db; box-shadow: 0 0 6px #3498db; }
+        .legend-dot.enemy  { background: #e74c3c; box-shadow: 0 0 6px #e74c3c; }
+        .legend-dot.obs    { background: #111; border: 2px solid #c0392b; }
+
+        #battle-log {
+            flex-basis: 100%;
+            background: #000;
+            color: #e67e22;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.88em;
+            border-left: 4px solid #e67e22;
+            text-align: left;
+        }
+
+        /* 드래그 삭제 영역 (화면 밖 표시) */
+        #trash-zone {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 50px;
+            background: rgba(192, 57, 43, 0.85);
+            border-radius: 12px 12px 0 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #fff;
+            font-size: 0.9em;
+            z-index: 9999;
+            border: 2px solid #e74c3c;
+            border-bottom: none;
+            pointer-events: none;
+            gap: 6px;
+        }
+        #trash-zone.show { display: flex; }
+        #trash-zone.hover { background: rgba(231, 76, 60, 1); }
     </style>
 </head>
 <body>
 
-    <div id="setup-screen" class="setup-container">
-        <h1 style="color:#f1c40f; margin-top:0;">🏰 노리톤 대미궁</h1>
-        
-        <div class="input-group">
-            <label>미궁 규모</label>
-            <select id="map-size">
-                <option value="small">작음 (빠른 탐사)</option>
-                <option value="medium">중간 (표준 탐사)</option>
-                <option value="large" selected>큼 (화면 꽉 차게)</option>
-            </select>
-        </div>
-        
-        <div class="input-group">
-            <label>갈림길 생성 개수</label>
-            <input type="number" id="fork-count" value="8" min="1" max="30">
-        </div>
-        
-        <div class="input-group">
-            <label>목표(GOAL) 개수</label>
-            <input type="number" id="goal-count" value="3" min="1" max="10">
-        </div>
-        <button onclick="startGame()" style="margin-top: 10px; padding: 12px 25px; font-size: 1.1em;">미궁 생성 및 입장</button>
+<!-- ════════════════════════════════════
+     대문 페이지
+════════════════════════════════════ -->
+<div id="setup-screen" class="setup-container">
+    <h1 style="color:#f1c40f; margin-top:0;">🏰 노리톤 대미궁</h1>
+
+    <div class="input-group">
+        <label>미궁 규모</label>
+        <select id="map-size">
+            <option value="small">작음 (빠른 탐사)</option>
+            <option value="medium">중간 (표준 탐사)</option>
+            <option value="large" selected>큼 (화면 꽉 차게)</option>
+        </select>
+    </div>
+    <div class="input-group">
+        <label>갈림길 생성 개수</label>
+        <input type="number" id="fork-count" value="8" min="1" max="30">
+    </div>
+    <div class="input-group">
+        <label>목표(GOAL) 개수</label>
+        <input type="number" id="goal-count" value="3" min="1" max="10">
+    </div>
+    <button onclick="startGame()" style="margin-top:10px; padding:12px 25px; font-size:1.1em;">미궁 생성 및 입장</button>
+</div>
+
+<!-- ════════════════════════════════════
+     맵(미궁) 게임 화면
+════════════════════════════════════ -->
+<div id="game-screen">
+    <div id="board-wrapper">
+        <div id="board"></div>
     </div>
 
-    <div id="game-screen">
-        <div id="board-wrapper">
-            <div id="board"></div>
+    <div class="ui-panel">
+        <button id="fog-btn" class="btn-fog" onclick="toggleFog()">발판 숨기기 (ON)</button>
+        <div style="color:#f1c40f; font-weight:bold; font-size:1.1em; margin:0 10px;">행동력: <span id="steps-left">0</span></div>
+        <input type="number" id="dice-input" placeholder="0">
+        <button onclick="applySteps()">이동력 주입</button>
+        <button class="btn-battle" onclick="goToBattleSetup()">⚔️ 배틀맵</button>
+        <button class="btn-danger" onclick="resetMaze()" style="margin-left:auto;">맵 재설계</button>
+        <div id="log">안전하게 진입했습니다. 행동력을 입력하세요. [발판 숨기기]로 미궁 전체를 가릴 수 있습니다.</div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════
+     배틀맵 설정 화면
+════════════════════════════════════ -->
+<div id="battle-setup-screen">
+    <div class="battle-setup-box">
+        <h2>⚔️ 배틀맵 설정</h2>
+        <div class="sub-title">
+            전투 구역의 크기와 배치를 설정하세요.<br>
+            방해물은 맵 칸 수에 포함됩니다.<br>
+            유닛은 드래그로 이동, 칸 밖으로 드래그하면 제거됩니다.
         </div>
-        
-        <div class="ui-panel">
-            <button id="fog-btn" class="btn-fog" onclick="toggleFog()">발판 숨기기 (ON)</button>
-            <div style="color:#f1c40f; font-weight:bold; font-size:1.1em; margin: 0 10px;">행동력: <span id="steps-left">0</span></div>
-            <input type="number" id="dice-input" placeholder="0">
-            <button onclick="applySteps()">이동력 주입</button>
-            <button onclick="resetMaze()" style="background:#c0392b; box-shadow:0 4px 0 #922b21; color:#fff; margin-left: auto;">맵 재설계</button>
-            
-            <div id="log">안전하게 진입했습니다. 행동력을 입력하세요. [발판 숨기기]로 미궁 전체를 가릴 수 있습니다.</div>
+        <div class="battle-input-grid">
+            <div class="battle-input-item">
+                <label>가로 칸 수</label>
+                <input type="number" id="b-cols" value="10" min="3" max="30">
+            </div>
+            <div class="battle-input-item">
+                <label>세로 칸 수</label>
+                <input type="number" id="b-rows" value="8" min="3" max="30">
+            </div>
+            <div class="battle-input-item">
+                <label>🚧 방해물 칸 수</label>
+                <input type="number" id="b-obstacles" value="5" min="0" max="50">
+            </div>
+            <div class="battle-input-item">
+                <label>🟢 플레이어</label>
+                <input type="number" value="1" min="1" max="1" disabled style="opacity:0.6;">
+            </div>
+            <div class="battle-input-item">
+                <label>🔵 아군 수</label>
+                <input type="number" id="b-allies" value="3" min="0" max="20">
+            </div>
+            <div class="battle-input-item">
+                <label>🔴 적군 수</label>
+                <input type="number" id="b-enemies" value="4" min="0" max="20">
+            </div>
+        </div>
+        <div class="battle-setup-btns">
+            <button onclick="backToMaze()" style="background:#555; box-shadow:0 4px 0 #333; color:#fff;">← 맵으로 돌아가기</button>
+            <button onclick="startBattleMap()" class="btn-battle" style="padding:12px 22px; font-size:1.05em;">⚔️ 전투 시작!</button>
         </div>
     </div>
+</div>
 
-    <script>
-        const TILE_SIZE = 28;
-        let COLS = 30;
-        let ROWS = 20;
-        
-        let grid = [];
-        let playerPos = { x: 1, y: 1 };
-        let moveSteps = 0;
-        let goalList = [];
-        let allPaths = [];
-        let isFogOn = false;
+<!-- ════════════════════════════════════
+     배틀맵 게임 화면
+════════════════════════════════════ -->
+<div id="battle-screen">
+    <div id="battle-board-wrapper">
+        <div id="battle-board"></div>
+    </div>
+    <div id="battle-ui">
+        <div class="legend">
+            <div class="legend-item"><div class="legend-dot player"></div><span>플레이어</span></div>
+            <div class="legend-item"><div class="legend-dot ally"></div><span>아군</span></div>
+            <div class="legend-item"><div class="legend-dot enemy"></div><span>적군</span></div>
+            <div class="legend-item"><div class="legend-dot obs"></div><span>방해물 (X)</span></div>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="goToBattleSetup()" style="background:#555; box-shadow:0 4px 0 #333; color:#fff;">⚙️ 재설정</button>
+            <button onclick="backToMaze()" style="background:#555; box-shadow:0 4px 0 #333; color:#fff;">← 맵으로 돌아가기</button>
+        </div>
+        <div id="battle-log">⚔️ 전투 구역이 설정되었습니다. 유닛을 드래그하여 이동하세요.</div>
+    </div>
+</div>
 
-        function startGame() {
-            // 브라우저 해상도에 맞춘 최대(큼) 사이즈 계산 (스크롤 없는 꽉 찬 화면)
-            const maxCols = Math.max(20, Math.floor(window.innerWidth * 0.95 / TILE_SIZE));
-            const maxRows = Math.max(15, Math.floor(window.innerHeight * 0.75 / TILE_SIZE));
+<!-- 드래그 삭제 안내 -->
+<div id="trash-zone">🗑️ 여기에 드래그하면 삭제</div>
 
-            // 맵 사이즈 설정 적용
-            const sizeMap = {
-                'small': { c: Math.floor(maxCols * 0.5), r: Math.floor(maxRows * 0.5) },
-                'medium': { c: Math.floor(maxCols * 0.75), r: Math.floor(maxRows * 0.75) },
-                'large': { c: maxCols, r: maxRows }
+<!-- ════════════════════════════════════
+     JavaScript
+════════════════════════════════════ -->
+<script>
+/* ─────────────────────────────────────
+   미궁 맵 변수 & 함수
+───────────────────────────────────── */
+const TILE_SIZE = 28;
+let COLS = 30;
+let ROWS = 20;
+
+let grid = [];
+let playerPos = { x: 1, y: 1 };
+let moveSteps = 0;
+let goalList = [];
+let allPaths = [];
+let isFogOn = false;
+let mazeBuilt = false; // 맵이 이미 생성됐는지 여부
+
+function startGame() {
+    const maxCols = Math.max(20, Math.floor(window.innerWidth * 0.95 / TILE_SIZE));
+    const maxRows = Math.max(15, Math.floor(window.innerHeight * 0.75 / TILE_SIZE));
+
+    const sizeMap = {
+        'small':  { c: Math.floor(maxCols * 0.5), r: Math.floor(maxRows * 0.5) },
+        'medium': { c: Math.floor(maxCols * 0.75), r: Math.floor(maxRows * 0.75) },
+        'large':  { c: maxCols, r: maxRows }
+    };
+    const selectedSize = document.getElementById('map-size').value;
+    COLS = sizeMap[selectedSize].c;
+    ROWS = sizeMap[selectedSize].r;
+
+    const forks = parseInt(document.getElementById('fork-count').value) || 5;
+    const goals = parseInt(document.getElementById('goal-count').value) || 2;
+
+    showScreen('game-screen');
+
+    isFogOn = false;
+    document.getElementById('board').classList.remove('fog-mode');
+    document.getElementById('fog-btn').innerText = "발판 숨기기 (ON)";
+    document.getElementById('fog-btn').style.background = "#9b59b6";
+    document.getElementById('fog-btn').style.boxShadow = "0 4px 0 #8e44ad";
+
+    mazeBuilt = true;
+    buildMaze(forks, goals);
+}
+
+function buildMaze(totalForks, totalGoals) {
+    const board = document.getElementById('board');
+    board.style.gridTemplateColumns = `repeat(${COLS}, ${TILE_SIZE}px)`;
+    board.style.gridTemplateRows    = `repeat(${ROWS}, ${TILE_SIZE}px)`;
+    board.innerHTML = '';
+
+    grid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+    goalList = [];
+    allPaths = [];
+
+    let startY = Math.floor(ROWS / 2);
+
+    let mainRoot = createTrunkPath(1, startY);
+    allPaths.push(...mainRoot);
+
+    let forksCreated = 0, attempts = 0, branches = [];
+    while (forksCreated < totalForks && attempts < 300) {
+        let basePoint = allPaths[Math.floor(Math.random() * allPaths.length)];
+        let branchLen = Math.floor(Math.random() * 10) + 5;
+        let newBranch = createBranchPath(basePoint.x, basePoint.y, branchLen);
+        if (newBranch.length > 2) {
+            allPaths.push(...newBranch);
+            branches.push(newBranch);
+            forksCreated++;
+        }
+        attempts++;
+    }
+
+    branches.sort((a, b) => b.length - a.length);
+    for (let i = 0; i < totalGoals && i < branches.length; i++) {
+        goalList.push(branches[i][branches[i].length - 1]);
+    }
+    if (goalList.length < totalGoals && mainRoot.length > 0) goalList.push(mainRoot[mainRoot.length - 1]);
+    if (goalList.length === 0) goalList.push(mainRoot[mainRoot.length - 1]);
+
+    let pathCells = [];
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            const isStart = (x === 1 && y === startY);
+            const isGoal  = goalList.find(g => g.x === x && g.y === y);
+            if (grid[y][x] === 1 && !isStart && !isGoal) pathCells.push({x, y});
+        }
+    }
+
+    let colorPool = [];
+    let third = Math.floor(pathCells.length / 3);
+    let remainder = pathCells.length % 3;
+    for (let i = 0; i < third; i++) colorPool.push('blue', 'red', 'gray');
+    let extras = ['blue', 'red', 'gray'].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < remainder; i++) colorPool.push(extras[i]);
+    colorPool.sort(() => Math.random() - 0.5);
+
+    let colorIndex = 0;
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            const cell = document.createElement('div');
+            cell.id = `c-${x}-${y}`;
+            cell.className = 'cell ' + (grid[y][x] === 1 ? 'path' : 'wall');
+            if (grid[y][x] === 1) {
+                const isStart = (x === 1 && y === startY);
+                const isGoal  = goalList.find(g => g.x === x && g.y === y);
+                if (isStart) { cell.classList.add('start'); cell.innerText = "S"; playerPos = {x, y}; }
+                else if (isGoal) { cell.classList.add('goal'); cell.innerText = "G"; }
+                else { cell.classList.add(colorPool[colorIndex]); colorIndex++; }
+            }
+            board.appendChild(cell);
+        }
+    }
+    updatePawn();
+    logTxt(`미궁 크기 [${COLS}x${ROWS}] 생성 완료! 이벤트 타일이 균등 배치되었습니다.`);
+}
+
+function createTrunkPath(sx, sy) {
+    let path = [{x: sx, y: sy}];
+    grid[sy][sx] = 1;
+    let cx = sx, cy = sy;
+    while (cx < COLS - 3) {
+        let dirs = [{x:1,y:0},{x:1,y:0},{x:1,y:0},{x:0,y:1},{x:0,y:-1}].sort(() => Math.random() - 0.5);
+        let moved = false;
+        for (let d of dirs) {
+            let nx = cx + d.x, ny = cy + d.y;
+            if (nx > 0 && nx < COLS-1 && ny > 0 && ny < ROWS-1 && grid[ny][nx] === 0) {
+                if (countNeighbors(nx, ny) === 1) {
+                    grid[ny][nx] = 1;
+                    cx = nx; cy = ny;
+                    path.push({x: cx, y: cy});
+                    moved = true;
+                    break;
+                }
+            }
+        }
+        if (!moved) break;
+    }
+    return path;
+}
+
+function createBranchPath(sx, sy, maxLen) {
+    let path = [];
+    let cx = sx, cy = sy;
+    for (let i = 0; i < maxLen; i++) {
+        let dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}].sort(() => Math.random() - 0.5);
+        let moved = false;
+        for (let d of dirs) {
+            let nx = cx + d.x, ny = cy + d.y;
+            if (nx > 0 && nx < COLS-1 && ny > 0 && ny < ROWS-1 && grid[ny][nx] === 0) {
+                if (countNeighbors(nx, ny) === 1) {
+                    grid[ny][nx] = 1;
+                    cx = nx; cy = ny;
+                    path.push({x: cx, y: cy});
+                    moved = true;
+                    break;
+                }
+            }
+        }
+        if (!moved) break;
+    }
+    return path;
+}
+
+function countNeighbors(x, y) {
+    let count = 0;
+    if (grid[y-1] && grid[y-1][x] === 1) count++;
+    if (grid[y+1] && grid[y+1][x] === 1) count++;
+    if (grid[y][x-1] === 1) count++;
+    if (grid[y][x+1] === 1) count++;
+    return count;
+}
+
+function toggleFog() {
+    isFogOn = !isFogOn;
+    const board = document.getElementById('board');
+    const btn   = document.getElementById('fog-btn');
+    if (isFogOn) {
+        board.classList.add('fog-mode');
+        btn.innerText = "발판 보이기 (OFF)";
+        btn.style.background = "#e67e22";
+        btn.style.boxShadow  = "0 4px 0 #d35400";
+        logTxt("안개가 미궁을 덮습니다. 골(GOAL)을 포함한 모든 발판이 숨겨졌습니다.");
+    } else {
+        board.classList.remove('fog-mode');
+        btn.innerText = "발판 숨기기 (ON)";
+        btn.style.background = "#9b59b6";
+        btn.style.boxShadow  = "0 4px 0 #8e44ad";
+        logTxt("안개가 걷혔습니다. 미궁의 진정한 모습이 드러납니다.");
+    }
+}
+
+function applySteps() {
+    const val = parseInt(document.getElementById('dice-input').value);
+    if (isNaN(val) || val <= 0) return;
+    moveSteps = val;
+    document.getElementById('steps-left').innerText = moveSteps;
+    document.getElementById('dice-input').value = '';
+    showMovable();
+}
+
+function showMovable() {
+    document.querySelectorAll('.movable').forEach(el => { el.classList.remove('movable'); el.onclick = null; });
+    if (moveSteps <= 0) { checkTile(); return; }
+    [{x:0,y:1},{x:0,y:-1},{x:1,y:0},{x:-1,y:0}].forEach(d => {
+        let nx = playerPos.x + d.x, ny = playerPos.y + d.y;
+        if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && grid[ny][nx] === 1) {
+            const el = document.getElementById(`c-${nx}-${ny}`);
+            el.classList.add('movable');
+            el.onclick = () => {
+                playerPos = {x: nx, y: ny};
+                moveSteps--;
+                document.getElementById('steps-left').innerText = moveSteps;
+                updatePawn();
+                showMovable();
             };
-            const selectedSize = document.getElementById('map-size').value;
-            COLS = sizeMap[selectedSize].c;
-            ROWS = sizeMap[selectedSize].r;
-
-            const forks = parseInt(document.getElementById('fork-count').value) || 5;
-            const goals = parseInt(document.getElementById('goal-count').value) || 2;
-            
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('game-screen').style.display = 'flex';
-            
-            // 입장 시 안개 모드 초기화
-            isFogOn = false;
-            document.getElementById('board').classList.remove('fog-mode');
-            document.getElementById('fog-btn').innerText = "발판 숨기기 (ON)";
-            document.getElementById('fog-btn').style.background = "#9b59b6";
-            document.getElementById('fog-btn').style.boxShadow = "0 4px 0 #8e44ad";
-            
-            buildMaze(forks, goals);
         }
+    });
+}
 
-        function buildMaze(totalForks, totalGoals) {
-            const board = document.getElementById('board');
-            board.style.gridTemplateColumns = `repeat(${COLS}, ${TILE_SIZE}px)`;
-            board.style.gridTemplateRows = `repeat(${ROWS}, ${TILE_SIZE}px)`;
-            board.innerHTML = '';
-            
-            grid = Array(ROWS).fill().map(() => Array(COLS).fill(0));
-            goalList = [];
-            allPaths = [];
+function updatePawn() {
+    let p = document.getElementById('pawn') || document.createElement('div');
+    p.id = 'pawn'; p.className = 'pawn';
+    const currentCell = document.getElementById(`c-${playerPos.x}-${playerPos.y}`);
+    if (currentCell) currentCell.appendChild(p);
+}
 
-            let startY = Math.floor(ROWS / 2);
+function checkTile() {
+    const isG = goalList.find(g => g.x === playerPos.x && g.y === playerPos.y);
+    if (isG) { alert("🎉 축하합니다! GOAL에 무사히 도달했습니다!"); resetMaze(); return; }
+    const cl = document.getElementById(`c-${playerPos.x}-${playerPos.y}`).classList;
+    if (cl.contains('blue')) logTxt("턴 종료: [파란색] 행운이 따릅니다! 파밍 판정을 하세요.");
+    else if (cl.contains('red')) logTxt("턴 종료: [빨간색] 위험합니다! Health 기반 회피 판정을 하세요.");
+    else logTxt("턴 종료: 주변은 고요한 복도입니다. 다음 주사위를 굴리세요.");
+}
 
-            // 1. 메인 척추 경로 (오른쪽으로)
-            let mainRoot = createTrunkPath(1, startY);
-            allPaths.push(...mainRoot);
+function logTxt(m) { document.getElementById('log').innerText = "> " + m; }
 
-            // 2. 갈림길 생성
-            let forksCreated = 0;
-            let attempts = 0;
-            let branches = [];
+/* 맵 재설계 (대문으로) */
+function resetMaze() {
+    mazeBuilt = false;
+    showScreen('setup-screen');
+}
 
-            while(forksCreated < totalForks && attempts < 300) {
-                let basePoint = allPaths[Math.floor(Math.random() * allPaths.length)];
-                let branchLen = Math.floor(Math.random() * 10) + 5;
-                
-                let newBranch = createBranchPath(basePoint.x, basePoint.y, branchLen);
-                if(newBranch.length > 2) {
-                    allPaths.push(...newBranch);
-                    branches.push(newBranch);
-                    forksCreated++;
-                }
-                attempts++;
-            }
+/* ─────────────────────────────────────
+   화면 전환 헬퍼
+───────────────────────────────────── */
+function showScreen(id) {
+    ['setup-screen','game-screen','battle-setup-screen','battle-screen'].forEach(s => {
+        document.getElementById(s).style.display = 'none';
+    });
+    document.getElementById(id).style.display =
+        (id === 'setup-screen') ? 'block' :
+        (id === 'battle-setup-screen') ? 'flex' :
+        'flex';
+}
 
-            // 3. 목표 지점(GOAL) 배치
-            branches.sort((a, b) => b.length - a.length);
-            for(let i = 0; i < totalGoals && i < branches.length; i++) {
-                goalList.push(branches[i][branches[i].length - 1]);
-            }
-            if(goalList.length < totalGoals && mainRoot.length > 0) {
-                goalList.push(mainRoot[mainRoot.length - 1]);
-            }
-            if(goalList.length === 0) goalList.push(mainRoot[mainRoot.length - 1]);
+/* ─────────────────────────────────────
+   맵 → 배틀맵 설정 이동
+   (맵은 초기화 X, 그대로 유지)
+───────────────────────────────────── */
+function goToBattleSetup() {
+    showScreen('battle-setup-screen');
+}
 
-            // 4. 발판 비율 1:1:1 균등 분배 로직
-            let pathCells = [];
-            for(let y = 0; y < ROWS; y++) {
-                for(let x = 0; x < COLS; x++) {
-                    const isStart = (x === 1 && y === startY);
-                    const isGoal = goalList.find(g => g.x === x && g.y === y);
-                    if(grid[y][x] === 1 && !isStart && !isGoal) {
-                        pathCells.push({x, y});
-                    }
-                }
-            }
+/* ─────────────────────────────────────
+   배틀맵 / 배틀맵 설정 → 맵으로 돌아가기
+   (맵 초기화 없이 그대로 복귀)
+───────────────────────────────────── */
+function backToMaze() {
+    showScreen('game-screen');
+}
 
-            let colorPool = [];
-            let third = Math.floor(pathCells.length / 3);
-            let remainder = pathCells.length % 3;
-            
-            for(let i=0; i<third; i++) { colorPool.push('blue', 'red', 'gray'); }
-            let extras = ['blue', 'red', 'gray'].sort(() => Math.random() - 0.5);
-            for(let i=0; i<remainder; i++) { colorPool.push(extras[i]); }
-            colorPool.sort(() => Math.random() - 0.5); // 완전히 섞기
+/* ─────────────────────────────────────
+   배틀맵 변수
+───────────────────────────────────── */
+let bCols = 10, bRows = 8;
+let battleUnits = [];   // { id, type, col, row, el }
+let dragUnit = null;    // 현재 드래그 중인 유닛 정보
+let dragGhost = null;   // 드래그 고스트 엘리먼트
 
-            // 5. 화면 렌더링
-            let colorIndex = 0;
-            for(let y = 0; y < ROWS; y++) {
-                for(let x = 0; x < COLS; x++) {
-                    const cell = document.createElement('div');
-                    cell.id = `c-${x}-${y}`;
-                    cell.className = 'cell ' + (grid[y][x] === 1 ? 'path' : 'wall');
-                    
-                    if(grid[y][x] === 1) {
-                        const isStart = (x === 1 && y === startY);
-                        const isGoal = goalList.find(g => g.x === x && g.y === y);
-                        
-                        if(isStart) { 
-                            cell.classList.add('start'); cell.innerText = "S"; 
-                            playerPos = {x, y}; 
-                        } else if(isGoal) { 
-                            cell.classList.add('goal'); cell.innerText = "G"; 
-                        } else {
-                            cell.classList.add(colorPool[colorIndex]);
-                            colorIndex++;
-                        }
-                    }
-                    board.appendChild(cell);
-                }
-            }
-            updatePawn();
-            logTxt(`미궁 크기 [${COLS}x${ROWS}] 생성 완료! 이벤트 타일이 균등 배치되었습니다.`);
+/* ─────────────────────────────────────
+   배틀맵 생성
+───────────────────────────────────── */
+function startBattleMap() {
+    bCols = Math.max(3, Math.min(30, parseInt(document.getElementById('b-cols').value) || 10));
+    bRows = Math.max(3, Math.min(30, parseInt(document.getElementById('b-rows').value) || 8));
+    const totalCells  = bCols * bRows;
+    let obstacleCount = Math.max(0, Math.min(Math.floor(totalCells * 0.4), parseInt(document.getElementById('b-obstacles').value) || 0));
+    let allyCount     = Math.max(0, Math.min(20, parseInt(document.getElementById('b-allies').value)  || 0));
+    let enemyCount    = Math.max(0, Math.min(20, parseInt(document.getElementById('b-enemies').value) || 0));
+
+    // 최대 배치 가능 유닛 수 체크 (1 플레이어 + 아군 + 적군 + 방해물 <= 전체 칸)
+    const unitTotal = 1 + allyCount + enemyCount + obstacleCount;
+    if (unitTotal > totalCells) {
+        battleLog(`⚠️ 칸 수(${totalCells})보다 배치할 수가 더 많습니다! 값을 줄여주세요.`);
+        return;
+    }
+
+    showScreen('battle-screen');
+    renderBattleMap(obstacleCount, allyCount, enemyCount);
+}
+
+function renderBattleMap(obstacleCount, allyCount, enemyCount) {
+    const board = document.getElementById('battle-board');
+    board.innerHTML = '';
+    battleUnits = [];
+
+    const CELL = 48;
+    board.style.gridTemplateColumns = `repeat(${bCols}, ${CELL}px)`;
+    board.style.gridTemplateRows    = `repeat(${bRows}, ${CELL}px)`;
+
+    /* 셀 생성 */
+    for (let r = 0; r < bRows; r++) {
+        for (let c = 0; c < bCols; c++) {
+            const cell = document.createElement('div');
+            cell.className = 'b-cell';
+            cell.dataset.col = c;
+            cell.dataset.row = r;
+            board.appendChild(cell);
         }
+    }
 
-        function createTrunkPath(sx, sy) {
-            let path = [{x: sx, y: sy}];
-            grid[sy][sx] = 1;
-            let cx = sx, cy = sy;
-            while(cx < COLS - 3) {
-                let dirs = [{x:1, y:0}, {x:1, y:0}, {x:1, y:0}, {x:0, y:1}, {x:0, y:-1}].sort(() => Math.random() - 0.5);
-                let moved = false;
-                for(let d of dirs) {
-                    let nx = cx + d.x, ny = cy + d.y;
-                    if(nx > 0 && nx < COLS - 1 && ny > 0 && ny < ROWS - 1 && grid[ny][nx] === 0) {
-                        if(countNeighbors(nx, ny) === 1) {
-                            grid[ny][nx] = 1;
-                            cx = nx; cy = cy; // 수정: cy=ny로 해야 이동됨
-                            cx = nx; cy = ny; 
-                            path.push({x: cx, y: cy});
-                            moved = true;
-                            break;
-                        }
-                    }
-                }
-                if(!moved) break;
-            }
-            return path;
-        }
+    /* 랜덤 빈 칸 목록 */
+    let allCells = [];
+    for (let r = 0; r < bRows; r++)
+        for (let c = 0; c < bCols; c++)
+            allCells.push({c, r});
+    allCells.sort(() => Math.random() - 0.5);
 
-        function createBranchPath(sx, sy, maxLen) {
-            let path = [];
-            let cx = sx, cy = sy;
-            for(let i = 0; i < maxLen; i++) {
-                let dirs = [{x:1, y:0}, {x:-1, y:0}, {x:0, y:1}, {x:0, y:-1}].sort(() => Math.random() - 0.5);
-                let moved = false;
-                for(let d of dirs) {
-                    let nx = cx + d.x, ny = cy + d.y;
-                    if(nx > 0 && nx < COLS - 1 && ny > 0 && ny < ROWS - 1 && grid[ny][nx] === 0) {
-                        if(countNeighbors(nx, ny) === 1) {
-                            grid[ny][nx] = 1;
-                            cx = nx; cy = ny;
-                            path.push({x: cx, y: cy});
-                            moved = true;
-                            break;
-                        }
-                    }
-                }
-                if(!moved) break;
-            }
-            return path;
-        }
+    let idx = 0;
 
-        function countNeighbors(x, y) {
-            let count = 0;
-            if(grid[y-1] && grid[y-1][x] === 1) count++;
-            if(grid[y+1] && grid[y+1][x] === 1) count++;
-            if(grid[y][x-1] === 1) count++;
-            if(grid[y][x+1] === 1) count++;
-            return count;
-        }
+    /* 방해물 배치 */
+    for (let i = 0; i < obstacleCount; i++) {
+        const pos = allCells[idx++];
+        getCell(pos.c, pos.r).classList.add('obstacle');
+    }
 
-        // 안개 토글 시스템
-        function toggleFog() {
-            isFogOn = !isFogOn;
-            const board = document.getElementById('board');
-            const btn = document.getElementById('fog-btn');
-            
-            if(isFogOn) {
-                board.classList.add('fog-mode');
-                btn.innerText = "발판 보이기 (OFF)";
-                btn.style.background = "#e67e22";
-                btn.style.boxShadow = "0 4px 0 #d35400";
-                logTxt("안개가 미궁을 덮습니다. 골(GOAL)을 포함한 모든 발판이 숨겨졌습니다.");
-            } else {
-                board.classList.remove('fog-mode');
-                btn.innerText = "발판 숨기기 (ON)";
-                btn.style.background = "#9b59b6";
-                btn.style.boxShadow = "0 4px 0 #8e44ad";
-                logTxt("안개가 걷혔습니다. 미궁의 진정한 모습이 드러납니다.");
-            }
-        }
+    /* 플레이어 (1명) */
+    const playerPos = allCells[idx++];
+    placeUnit('player', 'P', playerPos.c, playerPos.r);
 
-        function applySteps() {
-            const val = parseInt(document.getElementById('dice-input').value);
-            if(isNaN(val) || val <= 0) return;
-            moveSteps = val;
-            document.getElementById('steps-left').innerText = moveSteps;
-            document.getElementById('dice-input').value = '';
-            showMovable();
-        }
+    /* 아군 */
+    for (let i = 1; i <= allyCount; i++) {
+        const pos = allCells[idx++];
+        placeUnit('ally', i, pos.c, pos.r);
+    }
 
-        function showMovable() {
-            document.querySelectorAll('.movable').forEach(el => { el.classList.remove('movable'); el.onclick = null; });
-            if(moveSteps <= 0) { checkTile(); return; }
+    /* 적군 */
+    for (let i = 1; i <= enemyCount; i++) {
+        const pos = allCells[idx++];
+        placeUnit('enemy', i, pos.c, pos.r);
+    }
 
-            [{x:0, y:1}, {x:0, y:-1}, {x:1, y:0}, {x:-1, y:0}].forEach(d => {
-                let nx = playerPos.x + d.x, ny = playerPos.y + d.y;
-                if(nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && grid[ny][nx] === 1) {
-                    const el = document.getElementById(`c-${nx}-${ny}`);
-                    el.classList.add('movable');
-                    el.onclick = () => { 
-                        playerPos = {x: nx, y: ny}; 
-                        moveSteps--; 
-                        document.getElementById('steps-left').innerText = moveSteps; 
-                        updatePawn(); 
-                        showMovable(); 
-                    };
-                }
-            });
-        }
+    battleLog(`⚔️ 배틀맵 [${bCols}×${bRows}] 생성 완료 | 방해물 ${obstacleCount} | 아군 ${allyCount} | 적군 ${enemyCount} | 유닛을 드래그해서 이동하세요.`);
+}
 
-        function updatePawn() {
-            let p = document.getElementById('pawn') || document.createElement('div');
-            p.id = 'pawn'; p.className = 'pawn';
-            const currentCell = document.getElementById(`c-${playerPos.x}-${playerPos.y}`);
-            if(currentCell) currentCell.appendChild(p);
-        }
+/* 특정 col, row의 셀 엘리먼트 반환 */
+function getCell(c, r) {
+    return document.querySelector(`#battle-board .b-cell[data-col="${c}"][data-row="${r}"]`);
+}
 
-        function checkTile() {
-            const isG = goalList.find(g => g.x === playerPos.x && g.y === playerPos.y);
-            if(isG) { 
-                alert("🎉 축하합니다! GOAL에 무사히 도달했습니다!"); 
-                resetMaze(); 
-                return; 
-            }
-            
-            const cl = document.getElementById(`c-${playerPos.x}-${playerPos.y}`).classList;
-            if(cl.contains('blue')) logTxt("턴 종료: [파란색] 행운이 따릅니다! 파밍 판정을 하세요.");
-            else if(cl.contains('red')) logTxt("턴 종료: [빨간색] 위험합니다! Health 기반 회피 판정을 하세요.");
-            else logTxt("턴 종료: 주변은 고요한 복도입니다. 다음 주사위를 굴리세요.");
-        }
+/* 유닛 생성 & 배치 */
+function placeUnit(type, label, col, row) {
+    const el = document.createElement('div');
+    el.className = `b-unit ${type}`;
+    el.textContent = label;
+    el.dataset.unitId = `${type}-${label}`;
 
-        function logTxt(m) { document.getElementById('log').innerText = "> " + m; }
-        function resetMaze() { document.getElementById('setup-screen').style.display = 'block'; document.getElementById('game-screen').style.display = 'none'; }
-    </script>
+    const unit = { id: `${type}-${label}`, type, label, col, row, el };
+    battleUnits.push(unit);
+
+    const cell = getCell(col, row);
+    if (cell) cell.appendChild(el);
+
+    /* 드래그 이벤트 등록 */
+    el.addEventListener('mousedown', onUnitMouseDown);
+    el.addEventListener('touchstart', onUnitTouchStart, { passive: false });
+}
+
+/* ─────────────────────────────────────
+   드래그 & 드롭 (마우스)
+───────────────────────────────────── */
+let dragOffX = 0, dragOffY = 0;
+
+function onUnitMouseDown(e) {
+    e.preventDefault();
+    const unitEl = e.currentTarget;
+    const unit = battleUnits.find(u => u.el === unitEl);
+    if (!unit) return;
+
+    startDrag(unit, e.clientX, e.clientY, unitEl);
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+}
+
+function onMouseMove(e) {
+    if (!dragGhost) return;
+    moveDragGhost(e.clientX, e.clientY);
+    highlightDropTarget(e.clientX, e.clientY);
+    checkTrashZone(e.clientX, e.clientY);
+}
+
+function onMouseUp(e) {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+    finishDrag(e.clientX, e.clientY);
+}
+
+/* ─────────────────────────────────────
+   드래그 & 드롭 (터치)
+───────────────────────────────────── */
+function onUnitTouchStart(e) {
+    e.preventDefault();
+    const unitEl = e.currentTarget;
+    const unit = battleUnits.find(u => u.el === unitEl);
+    if (!unit) return;
+    const touch = e.touches[0];
+    startDrag(unit, touch.clientX, touch.clientY, unitEl);
+
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+}
+
+function onTouchMove(e) {
+    e.preventDefault();
+    if (!dragGhost) return;
+    const touch = e.touches[0];
+    moveDragGhost(touch.clientX, touch.clientY);
+    highlightDropTarget(touch.clientX, touch.clientY);
+    checkTrashZone(touch.clientX, touch.clientY);
+}
+
+function onTouchEnd(e) {
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onTouchEnd);
+    const touch = e.changedTouches[0];
+    finishDrag(touch.clientX, touch.clientY);
+}
+
+/* ─────────────────────────────────────
+   드래그 공통 로직
+───────────────────────────────────── */
+function startDrag(unit, clientX, clientY, el) {
+    dragUnit = unit;
+
+    /* 고스트 생성 */
+    dragGhost = el.cloneNode(true);
+    dragGhost.style.cssText = `
+        position: fixed;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9000;
+        opacity: 0.85;
+        transform: scale(1.15);
+        transition: none;
+    `;
+    dragGhost.className = el.className;
+    dragGhost.textContent = el.textContent;
+    document.body.appendChild(dragGhost);
+
+    const rect = el.getBoundingClientRect();
+    dragOffX = clientX - rect.left - rect.width / 2;
+    dragOffY = clientY - rect.top  - rect.height / 2;
+
+    moveDragGhost(clientX, clientY);
+    el.classList.add('dragging');
+
+    /* 삭제존 표시 */
+    document.getElementById('trash-zone').classList.add('show');
+}
+
+function moveDragGhost(clientX, clientY) {
+    if (!dragGhost) return;
+    dragGhost.style.left = (clientX - 19 - dragOffX) + 'px';
+    dragGhost.style.top  = (clientY - 19 - dragOffY) + 'px';
+}
+
+function highlightDropTarget(clientX, clientY) {
+    document.querySelectorAll('.b-cell.drag-over').forEach(el => el.classList.remove('drag-over'));
+    const el = getCellAtPoint(clientX, clientY);
+    if (el && !el.classList.contains('obstacle')) el.classList.add('drag-over');
+}
+
+function checkTrashZone(clientX, clientY) {
+    const tz = document.getElementById('trash-zone');
+    const rect = tz.getBoundingClientRect();
+    /* 보드 바깥 전체도 삭제 구역으로 처리하기 위해 trash-zone hover 표시 */
+    const board = document.getElementById('battle-board');
+    const br = board.getBoundingClientRect();
+    const isOutside = clientX < br.left || clientX > br.right || clientY < br.top || clientY > br.bottom;
+    if (isOutside) tz.classList.add('hover');
+    else tz.classList.remove('hover');
+}
+
+function finishDrag(clientX, clientY) {
+    if (!dragUnit) return;
+
+    /* 고스트 제거 */
+    if (dragGhost) { dragGhost.remove(); dragGhost = null; }
+    document.querySelectorAll('.b-cell.drag-over').forEach(el => el.classList.remove('drag-over'));
+    document.getElementById('trash-zone').classList.remove('show', 'hover');
+
+    dragUnit.el.classList.remove('dragging');
+
+    /* 보드 밖 → 삭제 */
+    const board = document.getElementById('battle-board');
+    const br = board.getBoundingClientRect();
+    const isOutside = clientX < br.left || clientX > br.right || clientY < br.top || clientY > br.bottom;
+
+    if (isOutside) {
+        removeUnit(dragUnit);
+        dragUnit = null;
+        return;
+    }
+
+    /* 타겟 셀 찾기 */
+    const targetCell = getCellAtPoint(clientX, clientY);
+    if (!targetCell || targetCell.classList.contains('obstacle')) {
+        /* 드롭 불가 → 제자리 */
+        dragUnit = null;
+        return;
+    }
+
+    const toCol = parseInt(targetCell.dataset.col);
+    const toRow = parseInt(targetCell.dataset.row);
+
+    /* 같은 칸이면 제자리 */
+    if (toCol === dragUnit.col && toRow === dragUnit.row) {
+        dragUnit = null;
+        return;
+    }
+
+    /* 이미 다른 유닛이 있는 칸 → 이동 불가 */
+    const occupied = battleUnits.find(u => u.col === toCol && u.row === toRow && u !== dragUnit);
+    if (occupied) {
+        battleLog(`⚠️ 이미 유닛이 있는 칸입니다!`);
+        dragUnit = null;
+        return;
+    }
+
+    /* 이동 확정 */
+    moveUnit(dragUnit, toCol, toRow);
+    dragUnit = null;
+}
+
+function moveUnit(unit, toCol, toRow) {
+    const fromCell = getCell(unit.col, unit.row);
+    const toCell   = getCell(toCol, toRow);
+
+    if (fromCell && fromCell.contains(unit.el)) fromCell.removeChild(unit.el);
+    unit.col = toCol;
+    unit.row = toRow;
+    if (toCell) toCell.appendChild(unit.el);
+
+    battleLog(`✅ ${unitLabel(unit)} 이동 → (${toCol + 1}, ${toRow + 1})`);
+}
+
+function removeUnit(unit) {
+    const cell = getCell(unit.col, unit.row);
+    if (cell && cell.contains(unit.el)) cell.removeChild(unit.el);
+    battleUnits = battleUnits.filter(u => u !== unit);
+    battleLog(`🗑️ ${unitLabel(unit)} 이(가) 전장에서 제거되었습니다.`);
+}
+
+function unitLabel(unit) {
+    const typeMap = { player: '플레이어', ally: `아군 ${unit.label}`, enemy: `적군 ${unit.label}` };
+    return typeMap[unit.type] || unit.id;
+}
+
+/* 특정 화면 좌표에 있는 b-cell 반환 */
+function getCellAtPoint(x, y) {
+    const els = document.elementsFromPoint(x, y);
+    return els.find(el => el.classList && el.classList.contains('b-cell')) || null;
+}
+
+function battleLog(m) {
+    document.getElementById('battle-log').innerText = m;
+}
+</script>
 </body>
 </html>
