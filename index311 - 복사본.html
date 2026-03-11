@@ -461,11 +461,11 @@ function startGame() {
     COLS = sizeMap[selectedSize].c;
     ROWS = sizeMap[selectedSize].r;
 
-    // 갈림길, 골 '0' 입력 버그 수정 반영
     let forkInput = parseInt(document.getElementById('fork-count').value);
-    const forks = isNaN(forkInput) ? 5 : forkInput; 
+    const forks = isNaN(forkInput) ? 5 : forkInput; // 0을 정상적으로 인식하도록 수정
+    
     let goalInput = parseInt(document.getElementById('goal-count').value);
-    const goals = isNaN(goalInput) ? 2 : goalInput;
+    const goals = isNaN(goalInput) ? 2 : goalInput; // 골 개수도 동일하게 수정
 
     showScreen('game-screen');
 
@@ -490,24 +490,17 @@ function buildMaze(totalForks, totalGoals) {
     allPaths = [];
 
     let startY = Math.floor(ROWS / 2);
-    
-    // 🌟 미궁 전체의 '최대 성장 거리' 설정
-    const sizeMode = document.getElementById('map-size').value;
-    let maxDistLimit;
-    if (sizeMode === 'small')  maxDistLimit = 12;
-    else if (sizeMode === 'medium') maxDistLimit = 18;
-    else maxDistLimit = 25;
-
-    // 1. 메인 줄기 생성 (최대 거리 제한 전달)
-    let mainRoot = createTrunkPath(1, startY, maxDistLimit);
+    // 1. 메인 줄기 생성
+    let mainRoot = createTrunkPath(1, startY);
     allPaths.push(...mainRoot);
 
-    // 2. 갈림길 생성 (최대 거리 제한 전달)
+    // 2. 갈림길 생성 (이 부분이 정확히 실행되어야 갈림길이 생깁니다)
     let forksCreated = 0, attempts = 0;
     while (forksCreated < totalForks && attempts < 400) {
+        // 기존에 만들어진 길 중 무작위 지점을 선택
         let basePoint = allPaths[Math.floor(Math.random() * allPaths.length)];
-        let branchLen = Math.floor(Math.random() * 8) + 4;
-        let newBranch = createBranchPath(basePoint.x, basePoint.y, branchLen, maxDistLimit, startY);
+        let branchLen = Math.floor(Math.random() * 8) + 4; // 갈림길 길이
+        let newBranch = createBranchPath(basePoint.x, basePoint.y, branchLen);
         
         if (newBranch.length > 1) {
             allPaths.push(...newBranch);
@@ -516,24 +509,50 @@ function buildMaze(totalForks, totalGoals) {
         attempts++;
     }
 
-    // 3. 골 지점 결정 (제한선 끝에 닿은 막다른 길들 중 가장 먼 곳들)
-    let potentialGoals = allPaths.filter((p, index) => index > 0 && countNeighbors(p.x, p.y) === 1);
+// 3. 골 지점 결정 (규모별 거리 로직)
+    const sizeMode = document.getElementById('map-size').value;
+    let minDist, maxDist;
+    if (sizeMode === 'small')  { minDist = 7;  maxDist = 12; }
+    else if (sizeMode === 'medium') { minDist = 12; maxDist = 18; }
+    else { minDist = 18; maxDist = 25; }
+
+    // 우선 모든 막다른 길(끝점)을 찾습니다.
+    let allDeadEnds = allPaths.filter((p, index) => index > 0 && countNeighbors(p.x, p.y) === 1);
     
-    // 막다른 길이 요구한 골 개수보다 적으면 일반 통로도 후보에 포함
+    // 끝점들을 '거리 조건에 맞는 그룹'과 '조건을 벗어난 그룹'으로 나눕니다.
+    let inRangeDeadEnds = [];
+    let outOfRangeDeadEnds = [];
+    
+    allDeadEnds.forEach(p => {
+        const dist = Math.abs(p.x - 1) + Math.abs(p.y - startY);
+        if (dist >= minDist && dist <= maxDist) inRangeDeadEnds.push(p);
+        else outOfRangeDeadEnds.push(p);
+    });
+
+    // 각 그룹 내부를 무작위로 섞어줍니다.
+    inRangeDeadEnds.sort(() => Math.random() - 0.5);
+    outOfRangeDeadEnds.sort(() => Math.random() - 0.5);
+
+    // 후보 리스트 합치기 (조건 완벽 일치 끝점 -> 조건 불일치 끝점 순서)
+    let potentialGoals = [...inRangeDeadEnds, ...outOfRangeDeadEnds];
+
+    // 만약 생성된 맵의 막다른 길 자체가 요구한 골 개수(예: 3개)보다 적을 경우,
+    // 최후의 수단으로 일반 통로 중 출발점에서 가장 먼 곳들을 후보에 추가합니다.
     if (potentialGoals.length < totalGoals) {
         let normalPaths = allPaths.filter((p, index) => index > 0 && countNeighbors(p.x, p.y) > 1);
+        normalPaths.sort((a, b) => {
+            const distA = Math.abs(a.x - 1) + Math.abs(a.y - startY);
+            const distB = Math.abs(b.x - 1) + Math.abs(b.y - startY);
+            return distB - distA; // 거리가 먼 순서대로 (내림차순)
+        });
         potentialGoals = [...potentialGoals, ...normalPaths];
     }
 
-    potentialGoals.sort((a, b) => {
-        const distA = Math.abs(a.x - 1) + Math.abs(a.y - startY);
-        const distB = Math.abs(b.x - 1) + Math.abs(b.y - startY);
-        return distB - distA; // 거리가 멀수록 우선순위
-    });
-
+    // 최종적으로 입력한 totalGoals 개수만큼 골 확정
     goalList = [];
     for (let i = 0; i < potentialGoals.length && goalList.length < totalGoals; i++) {
         const candidate = potentialGoals[i];
+        // 중복 지정 방지
         if (!goalList.some(g => g.x === candidate.x && g.y === candidate.y)) {
             goalList.push(candidate);
         }
@@ -549,6 +568,7 @@ function buildMaze(totalForks, totalGoals) {
         }
     }
 
+    // ... (이후 타일 컬러링 및 렌더링 로직은 기존과 동일)
     let colorPool = [];
     let third = Math.floor(pathCells.length / 3);
     let remainder = pathCells.length % 3;
@@ -574,51 +594,19 @@ function buildMaze(totalForks, totalGoals) {
         }
     }
     updatePawn();
-    logTxt(`미궁 크기 [${COLS}x${ROWS}] 생성 완료! 맵 전체의 최대 거리가 ${maxDistLimit}칸으로 제한되었습니다.`);
+    logTxt(`미궁 크기 [${COLS}x${ROWS}] 생성 완료! 골 거리가 ${minDist}~${maxDist} 범위로 설정되었습니다.`);
 }
 
-function createTrunkPath(sx, sy, maxDistLimit) {
+function createTrunkPath(sx, sy) {
     let path = [{x: sx, y: sy}];
     grid[sy][sx] = 1;
     let cx = sx, cy = sy;
-    while (cx < COLS - 2) {
-        // 🌟 메인 길도 최대 거리에 도달하면 성장을 멈춤
-        if (Math.abs(cx - 1) + Math.abs(cy - sy) >= maxDistLimit) break;
-
+    while (cx < COLS - 3) {
         let dirs = [{x:1,y:0},{x:1,y:0},{x:1,y:0},{x:0,y:1},{x:0,y:-1}].sort(() => Math.random() - 0.5);
         let moved = false;
         for (let d of dirs) {
             let nx = cx + d.x, ny = cy + d.y;
             if (nx > 0 && nx < COLS-1 && ny > 0 && ny < ROWS-1 && grid[ny][nx] === 0) {
-                // 다음 칸이 제한 거리를 넘어가면 취소
-                if (Math.abs(nx - 1) + Math.abs(ny - sy) > maxDistLimit) continue;
-                
-                if (countNeighbors(nx, ny) === 1) {
-                    grid[ny][nx] = 1;
-                    cx = nx; cy = ny;
-                    path.push({x: cx, y: cy});
-                    moved = true;
-                    break;
-                }
-            }
-        }
-        if (!moved) break;
-    }
-    return path;
-}
-
-function createBranchPath(sx, sy, maxLen, maxDistLimit, startY) {
-    let path = [];
-    let cx = sx, cy = sy;
-    for (let i = 0; i < maxLen; i++) {
-        let dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}].sort(() => Math.random() - 0.5);
-        let moved = false;
-        for (let d of dirs) {
-            let nx = cx + d.x, ny = cy + d.y;
-            if (nx > 0 && nx < COLS-1 && ny > 0 && ny < ROWS-1 && grid[ny][nx] === 0) {
-                // 🌟 갈림길 역시 제한 거리를 넘어가면 더 이상 뻗지 않음
-                if (Math.abs(nx - 1) + Math.abs(ny - startY) > maxDistLimit) continue;
-
                 if (countNeighbors(nx, ny) === 1) {
                     grid[ny][nx] = 1;
                     cx = nx; cy = ny;
