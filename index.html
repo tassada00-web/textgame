@@ -505,19 +505,42 @@ function buildMaze(totalForks, totalGoals) {
         attempts++;
     }
 
-    // --- 거리 로직 시작 (이 부분을 교체하세요) ---
-    const sizeMode = document.getElementById('map-size').value;
-    let minDist, maxDist;
+let minDist, maxDist;
     if (sizeMode === 'small')  { minDist = 7;  maxDist = 12; }
     else if (sizeMode === 'medium') { minDist = 12; maxDist = 18; }
     else { minDist = 18; maxDist = 25; }
 
-    // 모든 길(allPaths) 중에서 출발점과의 거리가 범위 내인 타일들만 추출
-    let potentialGoals = allPaths.filter(p => {
-        // 맨해튼 거리(x차이 + y차이)로 대략적인 경로 길이 계산
+    let potentialGoals = allPaths.filter((p, index) => {
+        // 1. 우리가 정한 거리 범위 내에 있어야 함
         const dist = Math.abs(p.x - startX) + Math.abs(p.y - startY);
-        return dist >= minDist && dist <= maxDist;
+        const inRange = dist >= minDist && dist <= maxDist;
+        
+        // 2. 막다른 길(주변에 연결된 길 타일이 딱 1개) 조건 추가
+        const isDeadEnd = countNeighbors(p.x, p.y) === 1;
+        
+        // 시작점(index 0)은 제외하고 범위와 막다른 길 조건 모두 만족해야 함
+        return inRange && isDeadEnd && index > 0;
     });
+
+    // 만약 조건(범위+막다른길)을 만족하는 후보가 하나도 없다면, 
+    // 범위를 무시하고 가장 먼 막다른 길이라도 찾음 (예외 처리)
+    if (potentialGoals.length === 0) {
+        potentialGoals = allPaths.filter((p, index) => index > 0 && countNeighbors(p.x, p.y) === 1)
+                                 .sort((a, b) => {
+                                     const distA = Math.abs(a.x - startX) + Math.abs(a.y - startY);
+                                     const distB = Math.abs(b.x - startX) + Math.abs(b.y - startY);
+                                     return distB - distA;
+                                 });
+    }
+
+    // 무작위 섞기 및 골 확정
+    potentialGoals.sort(() => Math.random() - 0.5);
+    
+    goalList = [];
+    for (let i = 0; i < totalGoals && i < potentialGoals.length; i++) {
+        goalList.push(potentialGoals[i]);
+    }
+    // --- 거리 및 막다른 길 로직 끝 ---
 
     // 만약 해당 범위에 타일이 없다면, 아쉬운 대로 가장 먼 타일들을 후보로 사용
     if (potentialGoals.length === 0) {
