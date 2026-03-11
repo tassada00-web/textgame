@@ -506,32 +506,53 @@ function buildMaze(totalForks, totalGoals) {
         attempts++;
     }
 
-    // 3. 골 지점 결정 (규모별 거리 로직)
+// 3. 골 지점 결정 (규모별 거리 로직)
     const sizeMode = document.getElementById('map-size').value;
     let minDist, maxDist;
     if (sizeMode === 'small')  { minDist = 7;  maxDist = 12; }
     else if (sizeMode === 'medium') { minDist = 12; maxDist = 18; }
     else { minDist = 18; maxDist = 25; }
 
-    // 모든 길(allPaths) 중에서 범위 내의 '막다른 길' 찾기
-    let potentialGoals = allPaths.filter((p, index) => {
+    // 우선 모든 막다른 길(끝점)을 찾습니다.
+    let allDeadEnds = allPaths.filter((p, index) => index > 0 && countNeighbors(p.x, p.y) === 1);
+    
+    // 끝점들을 '거리 조건에 맞는 그룹'과 '조건을 벗어난 그룹'으로 나눕니다.
+    let inRangeDeadEnds = [];
+    let outOfRangeDeadEnds = [];
+    
+    allDeadEnds.forEach(p => {
         const dist = Math.abs(p.x - 1) + Math.abs(p.y - startY);
-        return dist >= minDist && dist <= maxDist && countNeighbors(p.x, p.y) === 1 && index > 0;
+        if (dist >= minDist && dist <= maxDist) inRangeDeadEnds.push(p);
+        else outOfRangeDeadEnds.push(p);
     });
 
-    // 후보가 없으면 가장 먼 막다른 길들로 대체
-    if (potentialGoals.length === 0) {
-        potentialGoals = allPaths.filter((p, index) => index > 0 && countNeighbors(p.x, p.y) === 1)
-                                 .sort((a, b) => {
-                                     const distA = Math.abs(a.x - 1) + Math.abs(a.y - startY);
-                                     const distB = Math.abs(b.x - 1) + Math.abs(b.y - startY);
-                                     return distB - distA;
-                                 });
+    // 각 그룹 내부를 무작위로 섞어줍니다.
+    inRangeDeadEnds.sort(() => Math.random() - 0.5);
+    outOfRangeDeadEnds.sort(() => Math.random() - 0.5);
+
+    // 후보 리스트 합치기 (조건 완벽 일치 끝점 -> 조건 불일치 끝점 순서)
+    let potentialGoals = [...inRangeDeadEnds, ...outOfRangeDeadEnds];
+
+    // 만약 생성된 맵의 막다른 길 자체가 요구한 골 개수(예: 3개)보다 적을 경우,
+    // 최후의 수단으로 일반 통로 중 출발점에서 가장 먼 곳들을 후보에 추가합니다.
+    if (potentialGoals.length < totalGoals) {
+        let normalPaths = allPaths.filter((p, index) => index > 0 && countNeighbors(p.x, p.y) > 1);
+        normalPaths.sort((a, b) => {
+            const distA = Math.abs(a.x - 1) + Math.abs(a.y - startY);
+            const distB = Math.abs(b.x - 1) + Math.abs(b.y - startY);
+            return distB - distA; // 거리가 먼 순서대로 (내림차순)
+        });
+        potentialGoals = [...potentialGoals, ...normalPaths];
     }
 
-    potentialGoals.sort(() => Math.random() - 0.5);
-    for (let i = 0; i < totalGoals && i < potentialGoals.length; i++) {
-        goalList.push(potentialGoals[i]);
+    // 최종적으로 입력한 totalGoals 개수만큼 골 확정
+    goalList = [];
+    for (let i = 0; i < potentialGoals.length && goalList.length < totalGoals; i++) {
+        const candidate = potentialGoals[i];
+        // 중복 지정 방지
+        if (!goalList.some(g => g.x === candidate.x && g.y === candidate.y)) {
+            goalList.push(candidate);
+        }
     }
 
     // 4. 나머지 렌더링 로직 (색상 배치 등)
