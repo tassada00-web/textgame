@@ -487,8 +487,9 @@ function buildMaze(totalForks, totalGoals) {
     allPaths = [];
 
     let startY = Math.floor(ROWS / 2);
+    const startX = 1; // 출발점 X좌표 고정
 
-    let mainRoot = createTrunkPath(1, startY);
+    let mainRoot = createTrunkPath(startX, startY);
     allPaths.push(...mainRoot);
 
     let forksCreated = 0, attempts = 0, branches = [];
@@ -504,12 +505,45 @@ function buildMaze(totalForks, totalGoals) {
         attempts++;
     }
 
-    branches.sort((a, b) => b.length - a.length);
-    for (let i = 0; i < totalGoals && i < branches.length; i++) {
-        goalList.push(branches[i][branches[i].length - 1]);
+    // --- 거리 로직 시작 (이 부분을 교체하세요) ---
+    const sizeMode = document.getElementById('map-size').value;
+    let minDist, maxDist;
+    if (sizeMode === 'small')  { minDist = 7;  maxDist = 12; }
+    else if (sizeMode === 'medium') { minDist = 12; maxDist = 18; }
+    else { minDist = 18; maxDist = 25; }
+
+    // 모든 길(allPaths) 중에서 출발점과의 거리가 범위 내인 타일들만 추출
+    let potentialGoals = allPaths.filter(p => {
+        // 맨해튼 거리(x차이 + y차이)로 대략적인 경로 길이 계산
+        const dist = Math.abs(p.x - startX) + Math.abs(p.y - startY);
+        return dist >= minDist && dist <= maxDist;
+    });
+
+    // 만약 해당 범위에 타일이 없다면, 아쉬운 대로 가장 먼 타일들을 후보로 사용
+    if (potentialGoals.length === 0) {
+        potentialGoals = [...allPaths].sort((a, b) => {
+            const distA = Math.abs(a.x - startX) + Math.abs(a.y - startY);
+            const distB = Math.abs(b.x - startX) + Math.abs(b.y - startY);
+            return distB - distA; // 내림차순
+        });
     }
-    if (goalList.length < totalGoals && mainRoot.length > 0) goalList.push(mainRoot[mainRoot.length - 1]);
-    if (goalList.length === 0) goalList.push(mainRoot[mainRoot.length - 1]);
+
+    // 중복 방지를 위해 섞어준 뒤 필요한 골 개수만큼 선택
+    potentialGoals.sort(() => Math.random() - 0.5);
+    
+    for (let i = 0; i < totalGoals && i < potentialGoals.length; i++) {
+        // 이미 골로 선택된 곳과 너무 가깝지 않은 곳으로 선택 (선택 사항)
+        const candidate = potentialGoals[i];
+        if (!goalList.some(g => Math.abs(g.x - candidate.x) + Math.abs(g.y - candidate.y) < 3)) {
+            goalList.push(candidate);
+        }
+    }
+    
+    // 최소 1개의 골은 반드시 보장
+    if (goalList.length === 0 && potentialGoals.length > 0) {
+        goalList.push(potentialGoals[0]);
+    }
+    // --- 거리 로직 끝 ---
 
     let pathCells = [];
     for (let y = 0; y < ROWS; y++) {
@@ -520,6 +554,7 @@ function buildMaze(totalForks, totalGoals) {
         }
     }
 
+    // ... (이후 타일 컬러링 및 렌더링 로직은 기존과 동일)
     let colorPool = [];
     let third = Math.floor(pathCells.length / 3);
     let remainder = pathCells.length % 3;
@@ -545,7 +580,7 @@ function buildMaze(totalForks, totalGoals) {
         }
     }
     updatePawn();
-    logTxt(`미궁 크기 [${COLS}x${ROWS}] 생성 완료! 이벤트 타일이 균등 배치되었습니다.`);
+    logTxt(`미궁 크기 [${COLS}x${ROWS}] 생성 완료! 골 거리가 ${minDist}~${maxDist} 범위로 설정되었습니다.`);
 }
 
 function createTrunkPath(sx, sy) {
@@ -1059,7 +1094,7 @@ function saveGame() {
         COLS, 
         ROWS, 
         isFogOn,
-        // 이 부분을 수정하여 movable 클래스가 저장되지 않도록 합니다.
+        // movable 클래스를 제외하여 저장 데이터 오염 방지
         tileData: Array.from(document.querySelectorAll('#board .cell.path')).map(el => ({
             id: el.id, 
             classes: Array.from(el.classList).filter(c => c !== 'movable')
@@ -1188,29 +1223,6 @@ function deleteSpecificSave(saveName) {
     updateSaveList();
 }
 
-// 3. 기존 saveGame 함수 덮어쓰기 (멀티 저장 지원)
-function saveGame() {
-    const now = new Date();
-    const saveName = `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-    
-    const gameState = {
-        grid, playerPos, moveSteps: parseInt(document.getElementById('steps-left').innerText),
-        goalList, COLS, ROWS, isFogOn,
-        tileData: Array.from(document.querySelectorAll('#board .cell.path')).map(el => ({
-            id: el.id, classes: Array.from(el.classList)
-        }))
-    };
-
-    localStorage.setItem('save_' + saveName, JSON.stringify(gameState));
-    
-    let allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
-    // 중복 이름 방지 및 최신순 정렬
-    allSaves = [saveName, ...allSaves.filter(n => n !== saveName)].slice(0, 10); 
-    localStorage.setItem('noriton_all_saves', JSON.stringify(allSaves));
-
-    logTxt(`💾 [${saveName}] 탐사 기록이 저장되었습니다.`);
-    updateSaveList();
-}
 
 // 페이지 로드 시 리스트 즉시 업데이트
 window.addEventListener('load', () => {
