@@ -293,13 +293,25 @@
         #trash-zone.hover { background: rgba(231, 76, 60, 1); }
     </style>
 </head>
+
 <body>
 
 <!-- ════════════════════════════════════
      대문 페이지
 ════════════════════════════════════ -->
-<div id="setup-screen" class="setup-container">
+<div id="setup-screen" class="setup-container" style="position: relative;">
+    <div id="save-list-container" style="position:absolute; left:-230px; top:0; width:210px; background:#1a1a1a; border:3px solid #f1c40f; border-radius:15px; padding:15px; text-align:left; max-height:500px; overflow-y:auto; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+        <h3 style="color:#f1c40f; margin-top:0; font-size:1em; border-bottom:1px solid #333; padding-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            💾 저장 기록
+            <span onclick="updateSaveList()" style="cursor:pointer; font-size:0.8em; opacity:0.7;">🔄</span>
+        </h3>
+        <div id="save-list" style="font-size:0.85em; color:#ccc; display:flex; flex-direction:column; gap:8px;">
+            저장된 기록이 없습니다.
+        </div>
+    </div>
+    
     <h1 style="color:#f1c40f; margin-top:0;">🏰 노리톤 대미궁</h1>
+    
 
     <div class="input-group">
         <label>미궁 규모</label>
@@ -1002,16 +1014,53 @@ function battleLog(m) {
     document.getElementById('battle-log').innerText = m;
 }
 /* 저장 및 불러오기 로직 */
+// 새 saveGame 함수 및 리스트 기능
+function updateSaveList() {
+    const saveListDiv = document.getElementById('save-list');
+    const allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
+    if (allSaves.length === 0) {
+        saveListDiv.innerHTML = "<div style='opacity:0.5; text-align:center; padding:20px 0;'>기록 없음</div>";
+        return;
+    }
+    saveListDiv.innerHTML = "";
+    allSaves.forEach((saveName) => {
+        const item = document.createElement('div');
+        item.style.cssText = "padding:10px; background:#2c2c2c; border-radius:8px; cursor:pointer; position:relative; border:1px solid #444; transition:0.2s;";
+        item.innerHTML = `<div style="color:#f1c40f; font-weight:bold; font-size:0.9em;">${saveName}</div><div class="del-btn" style="position:absolute; right:8px; top:8px; color:#e74c3c; font-weight:bold;">×</div>`;
+        item.onclick = (e) => {
+            if(e.target.classList.contains('del-btn')) {
+                deleteSpecificSave(saveName);
+            } else {
+                const data = JSON.parse(localStorage.getItem('save_' + saveName));
+                if (data) loadGame(data);
+            }
+        };
+        saveListDiv.appendChild(item);
+    });
+}
+
+function deleteSpecificSave(saveName) {
+    if(!confirm(`[${saveName}] 기록을 삭제할까요?`)) return;
+    localStorage.removeItem('save_' + saveName);
+    let allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]").filter(n => n !== saveName);
+    localStorage.setItem('noriton_all_saves', JSON.stringify(allSaves));
+    updateSaveList();
+}
+
 function saveGame() {
+    const now = new Date();
+    const saveName = `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
     const gameState = {
         grid, playerPos, moveSteps: parseInt(document.getElementById('steps-left').innerText),
         goalList, COLS, ROWS, isFogOn,
-        tileData: Array.from(document.querySelectorAll('#board .cell.path')).map(el => ({
-            id: el.id, classes: Array.from(el.classList)
-        }))
+        tileData: Array.from(document.querySelectorAll('#board .cell.path')).map(el => ({ id: el.id, classes: Array.from(el.classList) }))
     };
-    localStorage.setItem('noriton_save', JSON.stringify(gameState));
-    logTxt("💾 탐사 기록이 저장되었습니다.");
+    localStorage.setItem('save_' + saveName, JSON.stringify(gameState));
+    let allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
+    allSaves = [saveName, ...allSaves.filter(n => n !== saveName)].slice(0, 10);
+    localStorage.setItem('noriton_all_saves', JSON.stringify(allSaves));
+    updateSaveList();
+    logTxt(`💾 [${saveName}] 기록이 저장되었습니다.`);
 }
 
 function clearSave() {
@@ -1074,6 +1123,88 @@ function loadGame(data) {
     updatePawn();
     logTxt("📂 저장된 지점부터 탐사를 재개합니다.");
 }
+
+/* ─────────────────────────────────────
+    멀티 세이브 & 로드 리스트 시스템
+───────────────────────────────────── */
+
+// 1. 세이브 목록 화면에 그리기
+function updateSaveList() {
+    const saveListDiv = document.getElementById('save-list');
+    const allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
+
+    if (allSaves.length === 0) {
+        saveListDiv.innerHTML = "<div style='opacity:0.5; text-align:center; padding:20px 0;'>기록 없음</div>";
+        return;
+    }
+
+    saveListDiv.innerHTML = "";
+    allSaves.forEach((saveName) => {
+        const item = document.createElement('div');
+        item.style.cssText = "padding:10px; background:#2c2c2c; border-radius:8px; cursor:pointer; position:relative; border:1px solid #444; transition:0.2s;";
+        item.innerHTML = `
+            <div style="color:#f1c40f; font-weight:bold; margin-bottom:3px;">${saveName}</div>
+            <div style="font-size:0.8em; opacity:0.6;">탐사 재개하기</div>
+            <div class="del-btn" style="position:absolute; right:8px; top:8px; color:#e74c3c; font-weight:bold; padding:2px 5px;">×</div>
+        `;
+        
+        // 클릭 시 로드
+        item.onclick = (e) => {
+            if(e.target.classList.contains('del-btn')) {
+                deleteSpecificSave(saveName);
+            } else {
+                const data = JSON.parse(localStorage.getItem('save_' + saveName));
+                if (data) loadGame(data);
+            }
+        };
+
+        item.onmouseover = () => { item.style.borderColor = "#f1c40f"; item.style.background = "#333"; };
+        item.onmouseout = () => { item.style.borderColor = "#444"; item.style.background = "#2c2c2c"; };
+        
+        saveListDiv.appendChild(item);
+    });
+}
+
+// 2. 특정 세이브 삭제
+function deleteSpecificSave(saveName) {
+    if(!confirm(`[${saveName}] 기록을 삭제할까요?`)) return;
+    localStorage.removeItem('save_' + saveName);
+    let allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
+    allSaves = allSaves.filter(name => name !== saveName);
+    localStorage.setItem('noriton_all_saves', JSON.stringify(allSaves));
+    updateSaveList();
+}
+
+// 3. 기존 saveGame 함수 덮어쓰기 (멀티 저장 지원)
+function saveGame() {
+    const now = new Date();
+    const saveName = `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    
+    const gameState = {
+        grid, playerPos, moveSteps: parseInt(document.getElementById('steps-left').innerText),
+        goalList, COLS, ROWS, isFogOn,
+        tileData: Array.from(document.querySelectorAll('#board .cell.path')).map(el => ({
+            id: el.id, classes: Array.from(el.classList)
+        }))
+    };
+
+    localStorage.setItem('save_' + saveName, JSON.stringify(gameState));
+    
+    let allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
+    // 중복 이름 방지 및 최신순 정렬
+    allSaves = [saveName, ...allSaves.filter(n => n !== saveName)].slice(0, 10); 
+    localStorage.setItem('noriton_all_saves', JSON.stringify(allSaves));
+
+    logTxt(`💾 [${saveName}] 탐사 기록이 저장되었습니다.`);
+    updateSaveList();
+}
+
+// 페이지 로드 시 리스트 즉시 업데이트
+window.addEventListener('load', () => {
+    updateSaveList(); // 이 줄 추가
+    const saved = localStorage.getItem('noriton_save');
+    // ... 기존 코드 유지 ...
+});
 </script>
 </body>
 </html>
