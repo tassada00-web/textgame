@@ -493,81 +493,52 @@ function buildMaze(totalForks, totalGoals) {
     allPaths.push(...mainRoot);
 
     let forksCreated = 0, attempts = 0, branches = [];
-    while (forksCreated < totalForks && attempts < 300) {
-        let basePoint = allPaths[Math.floor(Math.random() * allPaths.length)];
-        let branchLen = Math.floor(Math.random() * 10) + 5;
-        let newBranch = createBranchPath(basePoint.x, basePoint.y, branchLen);
-        if (newBranch.length > 2) {
-            allPaths.push(...newBranch);
-            branches.push(newBranch);
-            forksCreated++;
-        }
-        attempts++;
-    }
-
-let minDist, maxDist;
+    const sizeMode = document.getElementById('map-size').value;
+    let minDist, maxDist;
+    
+    // 규모별 거리 설정
     if (sizeMode === 'small')  { minDist = 7;  maxDist = 12; }
     else if (sizeMode === 'medium') { minDist = 12; maxDist = 18; }
     else { minDist = 18; maxDist = 25; }
 
+    // 골 후보 필터링 (startX 대신 숫자 1 사용)
     let potentialGoals = allPaths.filter((p, index) => {
-        // 1. 우리가 정한 거리 범위 내에 있어야 함
-        const dist = Math.abs(p.x - startX) + Math.abs(p.y - startY);
+        const dist = Math.abs(p.x - 1) + Math.abs(p.y - startY);
         const inRange = dist >= minDist && dist <= maxDist;
         
-        // 2. 막다른 길(주변에 연결된 길 타일이 딱 1개) 조건 추가
+        // 막다른 길(주변에 길이 1개) 조건
         const isDeadEnd = countNeighbors(p.x, p.y) === 1;
         
-        // 시작점(index 0)은 제외하고 범위와 막다른 길 조건 모두 만족해야 함
         return inRange && isDeadEnd && index > 0;
     });
 
-    // 만약 조건(범위+막다른길)을 만족하는 후보가 하나도 없다면, 
-    // 범위를 무시하고 가장 먼 막다른 길이라도 찾음 (예외 처리)
+    // 범위 내에 막다른 길이 없을 경우 예외 처리
     if (potentialGoals.length === 0) {
         potentialGoals = allPaths.filter((p, index) => index > 0 && countNeighbors(p.x, p.y) === 1)
                                  .sort((a, b) => {
-                                     const distA = Math.abs(a.x - startX) + Math.abs(a.y - startY);
-                                     const distB = Math.abs(b.x - startX) + Math.abs(b.y - startY);
-                                     return distB - distA;
+                                     const distA = Math.abs(a.x - 1) + Math.abs(a.y - startY);
+                                     const distB = Math.abs(b.x - 1) + Math.abs(b.y - startY);
+                                     return distB - distA; // 가장 먼 곳부터
                                  });
     }
 
-    // 무작위 섞기 및 골 확정
+    // 무작위로 섞기
     potentialGoals.sort(() => Math.random() - 0.5);
     
     goalList = [];
-    for (let i = 0; i < totalGoals && i < potentialGoals.length; i++) {
-        goalList.push(potentialGoals[i]);
-    }
-    // --- 거리 및 막다른 길 로직 끝 ---
-
-    // 만약 해당 범위에 타일이 없다면, 아쉬운 대로 가장 먼 타일들을 후보로 사용
-    if (potentialGoals.length === 0) {
-        potentialGoals = [...allPaths].sort((a, b) => {
-            const distA = Math.abs(a.x - startX) + Math.abs(a.y - startY);
-            const distB = Math.abs(b.x - startX) + Math.abs(b.y - startY);
-            return distB - distA; // 내림차순
-        });
-    }
-
-    // 중복 방지를 위해 섞어준 뒤 필요한 골 개수만큼 선택
-    potentialGoals.sort(() => Math.random() - 0.5);
-    
-    for (let i = 0; i < totalGoals && i < potentialGoals.length; i++) {
-        // 이미 골로 선택된 곳과 너무 가깝지 않은 곳으로 선택 (선택 사항)
+    // 중복 및 너무 가까운 위치 피해서 골 확정
+    for (let i = 0; i < potentialGoals.length && goalList.length < totalGoals; i++) {
         const candidate = potentialGoals[i];
         if (!goalList.some(g => Math.abs(g.x - candidate.x) + Math.abs(g.y - candidate.y) < 3)) {
             goalList.push(candidate);
         }
     }
     
-    // 최소 1개의 골은 반드시 보장
+    // 최소 1개 보장
     if (goalList.length === 0 && potentialGoals.length > 0) {
         goalList.push(potentialGoals[0]);
     }
-    // --- 거리 로직 끝 ---
-
+    
     let pathCells = [];
     for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
