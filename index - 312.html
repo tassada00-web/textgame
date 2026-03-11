@@ -29,7 +29,7 @@
         /* 타일 디자인 */
         .cell { width: 28px; height: 28px; position: relative; box-sizing: border-box; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .wall { background: #000; }
-        .path { background: #22f3e; border: 1px solid rgba(255,255,255,0.03); }
+        .path { background: #222f3e; border: 1px solid rgba(255,255,255,0.03); }
         .gray { background: #576574; }
         .blue { background: #2980b9; box-shadow: inset 0 0 10px rgba(0,0,0,0.6); }
         .red { background: #c0392b; box-shadow: inset 0 0 10px rgba(0,0,0,0.6); }
@@ -163,10 +163,30 @@
         }
         .b-cell:hover { border-color: #555; }
 
+        /* 방해물 칸 */
+        .b-cell.obstacle {
+            background: #111 !important;
+            cursor: default;
+        }
+        .b-cell.obstacle::before,
+        .b-cell.obstacle::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 70%;
+            background: #c0392b;
+            border-radius: 2px;
+        }
+        .b-cell.obstacle::before { transform: rotate(45deg); }
+        .b-cell.obstacle::after  { transform: rotate(-45deg); }
+
         /* 드래그 오버 하이라이트 */
         .b-cell.drag-over {
             background: #2e4a2e !important;
             border-color: #2ecc71 !important;
+        }
+        .b-cell.drag-out-zone {
+            /* 칸 밖 드래그 영역 표시용 - 실제로는 body에서 처리 */
         }
 
         /* ── 배틀 유닛 ── */
@@ -212,27 +232,6 @@
             color: #fff;
             box-shadow: 0 0 10px #c0392b, 0 2px 8px rgba(0,0,0,0.6);
         }
-        
-        /* 장애물 유닛 (사각형 형태의 차단막 느낌) */
-        .b-unit.obstacle {
-            background: #111;
-            border-radius: 8px; /* 장애물은 각진 모양 */
-            box-shadow: 0 2px 8px rgba(0,0,0,0.8);
-            border: 2px solid #c0392b;
-            color: transparent;
-        }
-        .b-unit.obstacle::before,
-        .b-unit.obstacle::after {
-            content: '';
-            position: absolute;
-            width: 2px;
-            height: 70%;
-            background: #c0392b;
-            border-radius: 2px;
-        }
-        .b-unit.obstacle::before { transform: rotate(45deg); }
-        .b-unit.obstacle::after  { transform: rotate(-45deg); }
-
 
         /* 배틀맵 하단 UI */
         #battle-ui {
@@ -254,14 +253,7 @@
         .legend-dot.player { background: #2ecc71; box-shadow: 0 0 6px #2ecc71; }
         .legend-dot.ally   { background: #3498db; box-shadow: 0 0 6px #3498db; }
         .legend-dot.enemy  { background: #e74c3c; box-shadow: 0 0 6px #e74c3c; }
-        .legend-dot.obs    { background: #111; border: 2px solid #c0392b; border-radius: 4px; }
-
-        .battle-add-btns button {
-            padding: 6px 10px;
-            font-size: 0.85em;
-            margin-right: 5px;
-            border-radius: 4px;
-        }
+        .legend-dot.obs    { background: #111; border: 2px solid #c0392b; }
 
         #battle-log {
             flex-basis: 100%;
@@ -304,6 +296,9 @@
 
 <body>
 
+<!-- ════════════════════════════════════
+     대문 페이지
+════════════════════════════════════ -->
 <div id="setup-screen" class="setup-container" style="position: relative;">
     <div id="save-list-container" style="position:absolute; left:-230px; top:0; width:210px; background:#1a1a1a; border:3px solid #f1c40f; border-radius:15px; padding:15px; text-align:left; max-height:500px; overflow-y:auto; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
         <h3 style="color:#f1c40f; margin-top:0; font-size:1em; border-bottom:1px solid #333; padding-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
@@ -317,6 +312,7 @@
     
     <h1 style="color:#f1c40f; margin-top:0;">🏰 노리톤 대미궁</h1>
     
+
     <div class="input-group">
         <label>미궁 규모</label>
         <select id="map-size">
@@ -336,6 +332,9 @@
     <button onclick="startGame()" style="margin-top:10px; padding:12px 25px; font-size:1.1em;">미궁 생성 및 입장</button>
 </div>
 
+<!-- ════════════════════════════════════
+     맵(미궁) 게임 화면
+════════════════════════════════════ -->
 <div id="game-screen">
     <div id="board-wrapper">
         <div id="board"></div>
@@ -348,19 +347,22 @@
         <button onclick="applySteps()">이동력 주입</button>
         <button onclick="saveGame()" style="background:#2980b9; box-shadow:0 4px 0 #1c598a; margin-left: 10px;">저장하기</button>
         <button onclick="clearSave()" style="background:#7f8c8d; box-shadow:0 4px 0 #636e72; margin-left: 5px;">저장 삭제</button>
-        <button class="btn-battle" onclick="openBattleMap()">⚔️ 배틀맵 열기</button>
+        <button class="btn-battle" onclick="goToBattleSetup()">⚔️ 배틀맵</button>
         <button class="btn-danger" onclick="resetMaze()" style="margin-left:auto;">맵 재설계</button>
         <div id="log">안전하게 진입했습니다. 행동력을 입력하세요. [발판 숨기기]로 미궁 전체를 가릴 수 있습니다.</div>
     </div>
 </div>
 
+<!-- ════════════════════════════════════
+     배틀맵 설정 화면
+════════════════════════════════════ -->
 <div id="battle-setup-screen">
     <div class="battle-setup-box">
         <h2>⚔️ 배틀맵 설정</h2>
         <div class="sub-title">
             전투 구역의 크기와 배치를 설정하세요.<br>
-            장애물 포함 모든 유닛은 맵 안에서 생성/삭제할 수 있습니다.<br>
-            삭제는 유닛을 맵 밖으로 던지면 됩니다.
+            방해물은 맵 칸 수에 포함됩니다.<br>
+            유닛은 드래그로 이동, 칸 밖으로 드래그하면 제거됩니다.
         </div>
         <div class="battle-input-grid">
             <div class="battle-input-item">
@@ -372,7 +374,7 @@
                 <input type="number" id="b-rows" value="8" min="3" max="30">
             </div>
             <div class="battle-input-item">
-                <label>🚧 초기 장애물 수</label>
+                <label>🚧 방해물 칸 수</label>
                 <input type="number" id="b-obstacles" value="5" min="0" max="50">
             </div>
             <div class="battle-input-item">
@@ -395,6 +397,9 @@
     </div>
 </div>
 
+<!-- ════════════════════════════════════
+     배틀맵 게임 화면
+════════════════════════════════════ -->
 <div id="battle-screen">
     <div id="battle-board-wrapper">
         <div id="battle-board"></div>
@@ -404,26 +409,22 @@
             <div class="legend-item"><div class="legend-dot player"></div><span>플레이어</span></div>
             <div class="legend-item"><div class="legend-dot ally"></div><span>아군</span></div>
             <div class="legend-item"><div class="legend-dot enemy"></div><span>적군</span></div>
-            <div class="legend-item"><div class="legend-dot obs"></div><span>장애물</span></div>
+            <div class="legend-item"><div class="legend-dot obs"></div><span>방해물 (X)</span></div>
         </div>
-        
-        <div class="battle-add-btns" style="display:flex; align-items:center;">
-            <span style="color:#aaa; font-size:0.85em; margin-right:8px;">➕ 추가:</span>
-            <button onclick="addBattleUnit('ally')" style="background:#3498db; color:white; border:none; box-shadow:0 3px 0 #2980b9;">아군</button>
-            <button onclick="addBattleUnit('enemy')" style="background:#e74c3c; color:white; border:none; box-shadow:0 3px 0 #c0392b;">적군</button>
-            <button onclick="addBattleUnit('obstacle')" style="background:#222; border:1px solid #e74c3c; color:white; box-shadow:0 3px 0 #111;">장애물</button>
-        </div>
-
         <div style="display:flex; gap:10px;">
-            <button onclick="goToBattleSetup()" style="background:#555; box-shadow:0 4px 0 #333; color:#fff;">⚙️ 맵 재설정</button>
-            <button onclick="backToMaze()" style="background:#555; box-shadow:0 4px 0 #333; color:#fff;">← 맵 복귀</button>
+            <button onclick="goToBattleSetup()" style="background:#555; box-shadow:0 4px 0 #333; color:#fff;">⚙️ 재설정</button>
+            <button onclick="backToMaze()" style="background:#555; box-shadow:0 4px 0 #333; color:#fff;">← 맵으로 돌아가기</button>
         </div>
         <div id="battle-log">⚔️ 전투 구역이 설정되었습니다. 유닛을 드래그하여 이동하세요.</div>
     </div>
 </div>
 
+<!-- 드래그 삭제 안내 -->
 <div id="trash-zone">🗑️ 여기에 드래그하면 삭제</div>
 
+<!-- ════════════════════════════════════
+     JavaScript
+════════════════════════════════════ -->
 <script>
 /* ─────────────────────────────────────
    미궁 맵 변수 & 함수
@@ -438,10 +439,9 @@ let moveSteps = 0;
 let goalList = [];
 let allPaths = [];
 let isFogOn = false;
-let mazeBuilt = false; 
+let mazeBuilt = false; // 맵이 이미 생성됐는지 여부
 
 window.addEventListener('load', () => {
-    updateSaveList();
     const saved = localStorage.getItem('noriton_save');
     if (saved && confirm("이전에 탐사하던 기록이 있습니다. 이어하시겠습니까?")) {
         loadGame(JSON.parse(saved));
@@ -461,6 +461,7 @@ function startGame() {
     COLS = sizeMap[selectedSize].c;
     ROWS = sizeMap[selectedSize].r;
 
+    // 갈림길, 골 '0' 입력 버그 수정 반영
     let forkInput = parseInt(document.getElementById('fork-count').value);
     const forks = isNaN(forkInput) ? 5 : forkInput; 
     let goalInput = parseInt(document.getElementById('goal-count').value);
@@ -475,7 +476,6 @@ function startGame() {
     document.getElementById('fog-btn').style.boxShadow = "0 4px 0 #8e44ad";
 
     mazeBuilt = true;
-    isBattleMapInitialized = false; // 새 맵 생성시 배틀맵도 초기화
     buildMaze(forks, goals);
 }
 
@@ -491,15 +491,18 @@ function buildMaze(totalForks, totalGoals) {
 
     let startY = Math.floor(ROWS / 2);
     
+    // 🌟 미궁 전체의 '최대 성장 거리' 설정
     const sizeMode = document.getElementById('map-size').value;
     let maxDistLimit;
     if (sizeMode === 'small')  maxDistLimit = 12;
     else if (sizeMode === 'medium') maxDistLimit = 18;
     else maxDistLimit = 25;
 
+    // 1. 메인 줄기 생성 (최대 거리 제한 전달)
     let mainRoot = createTrunkPath(1, startY, maxDistLimit);
     allPaths.push(...mainRoot);
 
+    // 2. 갈림길 생성 (최대 거리 제한 전달)
     let forksCreated = 0, attempts = 0;
     while (forksCreated < totalForks && attempts < 400) {
         let basePoint = allPaths[Math.floor(Math.random() * allPaths.length)];
@@ -513,8 +516,10 @@ function buildMaze(totalForks, totalGoals) {
         attempts++;
     }
 
+    // 3. 골 지점 결정 (제한선 끝에 닿은 막다른 길들 중 가장 먼 곳들)
     let potentialGoals = allPaths.filter((p, index) => index > 0 && countNeighbors(p.x, p.y) === 1);
     
+    // 막다른 길이 요구한 골 개수보다 적으면 일반 통로도 후보에 포함
     if (potentialGoals.length < totalGoals) {
         let normalPaths = allPaths.filter((p, index) => index > 0 && countNeighbors(p.x, p.y) > 1);
         potentialGoals = [...potentialGoals, ...normalPaths];
@@ -523,7 +528,7 @@ function buildMaze(totalForks, totalGoals) {
     potentialGoals.sort((a, b) => {
         const distA = Math.abs(a.x - 1) + Math.abs(a.y - startY);
         const distB = Math.abs(b.x - 1) + Math.abs(b.y - startY);
-        return distB - distA; 
+        return distB - distA; // 거리가 멀수록 우선순위
     });
 
     goalList = [];
@@ -534,6 +539,7 @@ function buildMaze(totalForks, totalGoals) {
         }
     }
 
+    // 4. 나머지 렌더링 로직 (색상 배치 등)
     let pathCells = [];
     for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
@@ -568,7 +574,7 @@ function buildMaze(totalForks, totalGoals) {
         }
     }
     updatePawn();
-    logTxt(`미궁 크기 [${COLS}x${ROWS}] 생성 완료! 최대 거리 제한: ${maxDistLimit}칸`);
+    logTxt(`미궁 크기 [${COLS}x${ROWS}] 생성 완료! 맵 전체의 최대 거리가 ${maxDistLimit}칸으로 제한되었습니다.`);
 }
 
 function createTrunkPath(sx, sy, maxDistLimit) {
@@ -576,13 +582,17 @@ function createTrunkPath(sx, sy, maxDistLimit) {
     grid[sy][sx] = 1;
     let cx = sx, cy = sy;
     while (cx < COLS - 2) {
+        // 🌟 메인 길도 최대 거리에 도달하면 성장을 멈춤
         if (Math.abs(cx - 1) + Math.abs(cy - sy) >= maxDistLimit) break;
+
         let dirs = [{x:1,y:0},{x:1,y:0},{x:1,y:0},{x:0,y:1},{x:0,y:-1}].sort(() => Math.random() - 0.5);
         let moved = false;
         for (let d of dirs) {
             let nx = cx + d.x, ny = cy + d.y;
             if (nx > 0 && nx < COLS-1 && ny > 0 && ny < ROWS-1 && grid[ny][nx] === 0) {
+                // 다음 칸이 제한 거리를 넘어가면 취소
                 if (Math.abs(nx - 1) + Math.abs(ny - sy) > maxDistLimit) continue;
+                
                 if (countNeighbors(nx, ny) === 1) {
                     grid[ny][nx] = 1;
                     cx = nx; cy = ny;
@@ -606,7 +616,32 @@ function createBranchPath(sx, sy, maxLen, maxDistLimit, startY) {
         for (let d of dirs) {
             let nx = cx + d.x, ny = cy + d.y;
             if (nx > 0 && nx < COLS-1 && ny > 0 && ny < ROWS-1 && grid[ny][nx] === 0) {
+                // 🌟 갈림길 역시 제한 거리를 넘어가면 더 이상 뻗지 않음
                 if (Math.abs(nx - 1) + Math.abs(ny - startY) > maxDistLimit) continue;
+
+                if (countNeighbors(nx, ny) === 1) {
+                    grid[ny][nx] = 1;
+                    cx = nx; cy = ny;
+                    path.push({x: cx, y: cy});
+                    moved = true;
+                    break;
+                }
+            }
+        }
+        if (!moved) break;
+    }
+    return path;
+}
+
+function createBranchPath(sx, sy, maxLen) {
+    let path = [];
+    let cx = sx, cy = sy;
+    for (let i = 0; i < maxLen; i++) {
+        let dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}].sort(() => Math.random() - 0.5);
+        let moved = false;
+        for (let d of dirs) {
+            let nx = cx + d.x, ny = cy + d.y;
+            if (nx > 0 && nx < COLS-1 && ny > 0 && ny < ROWS-1 && grid[ny][nx] === 0) {
                 if (countNeighbors(nx, ny) === 1) {
                     grid[ny][nx] = 1;
                     cx = nx; cy = ny;
@@ -695,9 +730,9 @@ function checkTile() {
 
 function logTxt(m) { document.getElementById('log').innerText = "> " + m; }
 
+/* 맵 재설계 (대문으로) */
 function resetMaze() {
     mazeBuilt = false;
-    isBattleMapInitialized = false;
     showScreen('setup-screen');
 }
 
@@ -715,23 +750,17 @@ function showScreen(id) {
 }
 
 /* ─────────────────────────────────────
-   배틀맵 기억 장치
+   맵 → 배틀맵 설정 이동
+   (맵은 초기화 X, 그대로 유지)
 ───────────────────────────────────── */
-let isBattleMapInitialized = false;
-
-function openBattleMap() {
-    // 맵이 이미 생성되어 있다면 설정창을 건너뛰고 바로 전투 맵으로!
-    if (isBattleMapInitialized) {
-        showScreen('battle-screen');
-    } else {
-        showScreen('battle-setup-screen');
-    }
-}
-
 function goToBattleSetup() {
     showScreen('battle-setup-screen');
 }
 
+/* ─────────────────────────────────────
+   배틀맵 / 배틀맵 설정 → 맵으로 돌아가기
+   (맵 초기화 없이 그대로 복귀)
+───────────────────────────────────── */
 function backToMaze() {
     showScreen('game-screen');
 }
@@ -740,9 +769,9 @@ function backToMaze() {
    배틀맵 변수
 ───────────────────────────────────── */
 let bCols = 10, bRows = 8;
-let battleUnits = [];   
-let dragUnit = null;    
-let dragGhost = null;   
+let battleUnits = [];   // { id, type, col, row, el }
+let dragUnit = null;    // 현재 드래그 중인 유닛 정보
+let dragGhost = null;   // 드래그 고스트 엘리먼트
 
 /* ─────────────────────────────────────
    배틀맵 생성
@@ -755,14 +784,13 @@ function startBattleMap() {
     let allyCount     = Math.max(0, Math.min(20, parseInt(document.getElementById('b-allies').value)  || 0));
     let enemyCount    = Math.max(0, Math.min(20, parseInt(document.getElementById('b-enemies').value) || 0));
 
+    // 최대 배치 가능 유닛 수 체크 (1 플레이어 + 아군 + 적군 + 방해물 <= 전체 칸)
     const unitTotal = 1 + allyCount + enemyCount + obstacleCount;
     if (unitTotal > totalCells) {
-        alert(`⚠️ 칸 수(${totalCells})보다 배치할 수가 더 많습니다! 값을 줄여주세요.`);
+        battleLog(`⚠️ 칸 수(${totalCells})보다 배치할 수가 더 많습니다! 값을 줄여주세요.`);
         return;
     }
 
-    // 초기화 방지를 위해 맵 상태 저장 확인
-    isBattleMapInitialized = true;
     showScreen('battle-screen');
     renderBattleMap(obstacleCount, allyCount, enemyCount);
 }
@@ -776,6 +804,7 @@ function renderBattleMap(obstacleCount, allyCount, enemyCount) {
     board.style.gridTemplateColumns = `repeat(${bCols}, ${CELL}px)`;
     board.style.gridTemplateRows    = `repeat(${bRows}, ${CELL}px)`;
 
+    /* 셀 생성 */
     for (let r = 0; r < bRows; r++) {
         for (let c = 0; c < bCols; c++) {
             const cell = document.createElement('div');
@@ -786,6 +815,7 @@ function renderBattleMap(obstacleCount, allyCount, enemyCount) {
         }
     }
 
+    /* 랜덤 빈 칸 목록 */
     let allCells = [];
     for (let r = 0; r < bRows; r++)
         for (let c = 0; c < bCols; c++)
@@ -794,32 +824,37 @@ function renderBattleMap(obstacleCount, allyCount, enemyCount) {
 
     let idx = 0;
 
-    /* 방해물도 이제 유닛으로 취급합니다 */
+    /* 방해물 배치 */
     for (let i = 0; i < obstacleCount; i++) {
         const pos = allCells[idx++];
-        placeUnit('obstacle', '', pos.c, pos.r);
+        getCell(pos.c, pos.r).classList.add('obstacle');
     }
 
+    /* 플레이어 (1명) */
     const playerPos = allCells[idx++];
     placeUnit('player', 'P', playerPos.c, playerPos.r);
 
+    /* 아군 */
     for (let i = 1; i <= allyCount; i++) {
         const pos = allCells[idx++];
         placeUnit('ally', i, pos.c, pos.r);
     }
 
+    /* 적군 */
     for (let i = 1; i <= enemyCount; i++) {
         const pos = allCells[idx++];
         placeUnit('enemy', i, pos.c, pos.r);
     }
 
-    battleLog(`⚔️ 배틀맵 [${bCols}×${bRows}] 생성 완료 | 유닛을 마음껏 드래그하세요.`);
+    battleLog(`⚔️ 배틀맵 [${bCols}×${bRows}] 생성 완료 | 방해물 ${obstacleCount} | 아군 ${allyCount} | 적군 ${enemyCount} | 유닛을 드래그해서 이동하세요.`);
 }
 
+/* 특정 col, row의 셀 엘리먼트 반환 */
 function getCell(c, r) {
     return document.querySelector(`#battle-board .b-cell[data-col="${c}"][data-row="${r}"]`);
 }
 
+/* 유닛 생성 & 배치 */
 function placeUnit(type, label, col, row) {
     const el = document.createElement('div');
     el.className = `b-unit ${type}`;
@@ -832,45 +867,13 @@ function placeUnit(type, label, col, row) {
     const cell = getCell(col, row);
     if (cell) cell.appendChild(el);
 
+    /* 드래그 이벤트 등록 */
     el.addEventListener('mousedown', onUnitMouseDown);
     el.addEventListener('touchstart', onUnitTouchStart, { passive: false });
 }
 
-/* 유닛 동적 추가 기능 */
-function addBattleUnit(type) {
-    let emptyCell = null;
-    for (let r = 0; r < bRows; r++) {
-        for (let c = 0; c < bCols; c++) {
-            if (!battleUnits.find(u => u.col === c && u.row === r)) {
-                emptyCell = {c, r};
-                break;
-            }
-        }
-        if (emptyCell) break;
-    }
-
-    if (!emptyCell) {
-        battleLog("⚠️ 맵이 꽉 차서 빈 칸이 없습니다!");
-        return;
-    }
-
-    let label = '';
-    if (type === 'ally' || type === 'enemy') {
-        const units = battleUnits.filter(u => u.type === type);
-        let max = 0;
-        units.forEach(u => {
-            let val = parseInt(u.label);
-            if (!isNaN(val) && val > max) max = val;
-        });
-        label = (max + 1).toString();
-    }
-
-    placeUnit(type, label, emptyCell.c, emptyCell.r);
-    battleLog(`➕ ${unitLabel({type, label})}이(가) 빈 칸에 생성되었습니다.`);
-}
-
 /* ─────────────────────────────────────
-   드래그 & 드롭 공통
+   드래그 & 드롭 (마우스)
 ───────────────────────────────────── */
 let dragOffX = 0, dragOffY = 0;
 
@@ -881,6 +884,7 @@ function onUnitMouseDown(e) {
     if (!unit) return;
 
     startDrag(unit, e.clientX, e.clientY, unitEl);
+
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
 }
@@ -898,6 +902,9 @@ function onMouseUp(e) {
     finishDrag(e.clientX, e.clientY);
 }
 
+/* ─────────────────────────────────────
+   드래그 & 드롭 (터치)
+───────────────────────────────────── */
 function onUnitTouchStart(e) {
     e.preventDefault();
     const unitEl = e.currentTarget;
@@ -926,13 +933,24 @@ function onTouchEnd(e) {
     finishDrag(touch.clientX, touch.clientY);
 }
 
+/* ─────────────────────────────────────
+   드래그 공통 로직
+───────────────────────────────────── */
 function startDrag(unit, clientX, clientY, el) {
     dragUnit = unit;
+
+    /* 고스트 생성 */
     dragGhost = el.cloneNode(true);
     dragGhost.style.cssText = `
-        position: fixed; width: 38px; height: 38px; border-radius: 50%;
-        pointer-events: none; z-index: 9000; opacity: 0.85;
-        transform: scale(1.15); transition: none;
+        position: fixed;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 9000;
+        opacity: 0.85;
+        transform: scale(1.15);
+        transition: none;
     `;
     dragGhost.className = el.className;
     dragGhost.textContent = el.textContent;
@@ -944,6 +962,8 @@ function startDrag(unit, clientX, clientY, el) {
 
     moveDragGhost(clientX, clientY);
     el.classList.add('dragging');
+
+    /* 삭제존 표시 */
     document.getElementById('trash-zone').classList.add('show');
 }
 
@@ -956,11 +976,13 @@ function moveDragGhost(clientX, clientY) {
 function highlightDropTarget(clientX, clientY) {
     document.querySelectorAll('.b-cell.drag-over').forEach(el => el.classList.remove('drag-over'));
     const el = getCellAtPoint(clientX, clientY);
-    if (el) el.classList.add('drag-over'); // 이제 장애물도 유닛이라 칸에 불이 들어옵니다.
+    if (el && !el.classList.contains('obstacle')) el.classList.add('drag-over');
 }
 
 function checkTrashZone(clientX, clientY) {
     const tz = document.getElementById('trash-zone');
+    const rect = tz.getBoundingClientRect();
+    /* 보드 바깥 전체도 삭제 구역으로 처리하기 위해 trash-zone hover 표시 */
     const board = document.getElementById('battle-board');
     const br = board.getBoundingClientRect();
     const isOutside = clientX < br.left || clientX > br.right || clientY < br.top || clientY > br.bottom;
@@ -971,12 +993,14 @@ function checkTrashZone(clientX, clientY) {
 function finishDrag(clientX, clientY) {
     if (!dragUnit) return;
 
+    /* 고스트 제거 */
     if (dragGhost) { dragGhost.remove(); dragGhost = null; }
     document.querySelectorAll('.b-cell.drag-over').forEach(el => el.classList.remove('drag-over'));
     document.getElementById('trash-zone').classList.remove('show', 'hover');
 
     dragUnit.el.classList.remove('dragging');
 
+    /* 보드 밖 → 삭제 */
     const board = document.getElementById('battle-board');
     const br = board.getBoundingClientRect();
     const isOutside = clientX < br.left || clientX > br.right || clientY < br.top || clientY > br.bottom;
@@ -987,8 +1011,10 @@ function finishDrag(clientX, clientY) {
         return;
     }
 
+    /* 타겟 셀 찾기 */
     const targetCell = getCellAtPoint(clientX, clientY);
-    if (!targetCell) {
+    if (!targetCell || targetCell.classList.contains('obstacle')) {
+        /* 드롭 불가 → 제자리 */
         dragUnit = null;
         return;
     }
@@ -996,19 +1022,21 @@ function finishDrag(clientX, clientY) {
     const toCol = parseInt(targetCell.dataset.col);
     const toRow = parseInt(targetCell.dataset.row);
 
+    /* 같은 칸이면 제자리 */
     if (toCol === dragUnit.col && toRow === dragUnit.row) {
         dragUnit = null;
         return;
     }
 
-    // 다른 유닛(캐릭터나 장애물)이 이미 있으면 자리 교체 불가능
+    /* 이미 다른 유닛이 있는 칸 → 이동 불가 */
     const occupied = battleUnits.find(u => u.col === toCol && u.row === toRow && u !== dragUnit);
     if (occupied) {
-        battleLog(`⚠️ 이미 다른 유닛이 자리 잡고 있습니다!`);
+        battleLog(`⚠️ 이미 유닛이 있는 칸입니다!`);
         dragUnit = null;
         return;
     }
 
+    /* 이동 확정 */
     moveUnit(dragUnit, toCol, toRow);
     dragUnit = null;
 }
@@ -1033,10 +1061,11 @@ function removeUnit(unit) {
 }
 
 function unitLabel(unit) {
-    const typeMap = { player: '플레이어', ally: `아군 ${unit.label}`, enemy: `적군 ${unit.label}`, obstacle: '장애물' };
+    const typeMap = { player: '플레이어', ally: `아군 ${unit.label}`, enemy: `적군 ${unit.label}` };
     return typeMap[unit.type] || unit.id;
 }
 
+/* 특정 화면 좌표에 있는 b-cell 반환 */
 function getCellAtPoint(x, y) {
     const els = document.elementsFromPoint(x, y);
     return els.find(el => el.classList && el.classList.contains('b-cell')) || null;
@@ -1045,10 +1074,8 @@ function getCellAtPoint(x, y) {
 function battleLog(m) {
     document.getElementById('battle-log').innerText = m;
 }
-
-/* ─────────────────────────────────────
-   세이브 & 로드 리스트 시스템
-───────────────────────────────────── */
+/* 저장 및 불러오기 로직 */
+// 새 saveGame 함수 및 리스트 기능
 function updateSaveList() {
     const saveListDiv = document.getElementById('save-list');
     const allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
@@ -1086,9 +1113,14 @@ function saveGame() {
     const saveName = `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
     
     const gameState = {
-        grid, playerPos, 
+        grid, 
+        playerPos, 
         moveSteps: parseInt(document.getElementById('steps-left').innerText),
-        goalList, COLS, ROWS, isFogOn,
+        goalList, 
+        COLS, 
+        ROWS, 
+        isFogOn,
+        // movable 클래스를 제외하여 저장 데이터 오염 방지
         tileData: Array.from(document.querySelectorAll('#board .cell.path')).map(el => ({
             id: el.id, 
             classes: Array.from(el.classList).filter(c => c !== 'movable')
@@ -1096,7 +1128,9 @@ function saveGame() {
     };
 
     localStorage.setItem('save_' + saveName, JSON.stringify(gameState));
+    
     let allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
+    // 중복 이름 방지 및 최신순 정렬 (최대 10개)
     allSaves = [saveName, ...allSaves.filter(n => n !== saveName)].slice(0, 10); 
     localStorage.setItem('noriton_all_saves', JSON.stringify(allSaves));
 
@@ -1112,8 +1146,13 @@ function clearSave() {
 }
 
 function loadGame(data) {
-    grid = data.grid; playerPos = data.playerPos; COLS = data.COLS; ROWS = data.ROWS;
-    goalList = data.goalList; isFogOn = data.isFogOn; moveSteps = data.moveSteps; 
+    grid = data.grid; 
+    playerPos = data.playerPos; 
+    COLS = data.COLS; 
+    ROWS = data.ROWS;
+    goalList = data.goalList; 
+    isFogOn = data.isFogOn;
+    moveSteps = data.moveSteps; 
     
     showScreen('game-screen');
     const board = document.getElementById('board');
@@ -1121,17 +1160,23 @@ function loadGame(data) {
     board.style.gridTemplateRows = `repeat(${ROWS}, ${TILE_SIZE}px)`;
     board.innerHTML = '';
 
+    // 핵심: 0,0부터 COLS,ROWS 끝까지 순서대로 스캔하며 생성
     for (let y = 0; y < ROWS; y++) {
         for (let x = 0; x < COLS; x++) {
             const cell = document.createElement('div');
             cell.id = `c-${x}-${y}`;
+            
+            // 저장된 타일 데이터 중 현재 좌표(x, y)와 일치하는 데이터 찾기
             const savedTile = data.tileData.find(t => t.id === `c-${x}-${y}`);
+            
             if (savedTile) {
+                // 길(Path) 타일인 경우
                 cell.className = savedTile.classes.join(' ');
                 if (cell.classList.contains('start')) cell.innerText = "S";
                 if (cell.classList.contains('goal')) cell.innerText = "G";
                 grid[y][x] = 1;
             } else {
+                // 벽(Wall) 타일인 경우
                 cell.className = 'cell wall';
                 grid[y][x] = 0;
             }
@@ -1140,6 +1185,7 @@ function loadGame(data) {
     }
 
     document.getElementById('steps-left').innerText = moveSteps;
+    
     if (isFogOn) {
         board.classList.add('fog-mode');
         const btn = document.getElementById('fog-btn');
@@ -1147,9 +1193,69 @@ function loadGame(data) {
         btn.style.background = "#e67e22";
         btn.style.boxShadow = "0 4px 0 #d35400";
     }
+    
     updatePawn();
     logTxt("📂 저장된 지점부터 탐사를 재개합니다.");
 }
+
+/* ─────────────────────────────────────
+    멀티 세이브 & 로드 리스트 시스템
+───────────────────────────────────── */
+
+// 1. 세이브 목록 화면에 그리기
+function updateSaveList() {
+    const saveListDiv = document.getElementById('save-list');
+    const allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
+
+    if (allSaves.length === 0) {
+        saveListDiv.innerHTML = "<div style='opacity:0.5; text-align:center; padding:20px 0;'>기록 없음</div>";
+        return;
+    }
+
+    saveListDiv.innerHTML = "";
+    allSaves.forEach((saveName) => {
+        const item = document.createElement('div');
+        item.style.cssText = "padding:10px; background:#2c2c2c; border-radius:8px; cursor:pointer; position:relative; border:1px solid #444; transition:0.2s;";
+        item.innerHTML = `
+            <div style="color:#f1c40f; font-weight:bold; margin-bottom:3px;">${saveName}</div>
+            <div style="font-size:0.8em; opacity:0.6;">탐사 재개하기</div>
+            <div class="del-btn" style="position:absolute; right:8px; top:8px; color:#e74c3c; font-weight:bold; padding:2px 5px;">×</div>
+        `;
+        
+        // 클릭 시 로드
+        item.onclick = (e) => {
+            if(e.target.classList.contains('del-btn')) {
+                deleteSpecificSave(saveName);
+            } else {
+                const data = JSON.parse(localStorage.getItem('save_' + saveName));
+                if (data) loadGame(data);
+            }
+        };
+
+        item.onmouseover = () => { item.style.borderColor = "#f1c40f"; item.style.background = "#333"; };
+        item.onmouseout = () => { item.style.borderColor = "#444"; item.style.background = "#2c2c2c"; };
+        
+        saveListDiv.appendChild(item);
+    });
+}
+
+// 2. 특정 세이브 삭제
+function deleteSpecificSave(saveName) {
+    if(!confirm(`[${saveName}] 기록을 삭제할까요?`)) return;
+    localStorage.removeItem('save_' + saveName);
+    let allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
+    allSaves = allSaves.filter(name => name !== saveName);
+    localStorage.setItem('noriton_all_saves', JSON.stringify(allSaves));
+    updateSaveList();
+}
+
+
+// 페이지 로드 시 리스트 즉시 업데이트
+window.addEventListener('load', () => {
+    updateSaveList(); // 이 줄 추가
+    const saved = localStorage.getItem('noriton_save');
+    // ... 기존 코드 유지 ...
+});
 </script>
 </body>
 </html>
