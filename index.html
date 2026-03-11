@@ -1050,17 +1050,31 @@ function deleteSpecificSave(saveName) {
 function saveGame() {
     const now = new Date();
     const saveName = `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    
     const gameState = {
-        grid, playerPos, moveSteps: parseInt(document.getElementById('steps-left').innerText),
-        goalList, COLS, ROWS, isFogOn,
-        tileData: Array.from(document.querySelectorAll('#board .cell.path')).map(el => ({ id: el.id, classes: Array.from(el.classList) }))
+        grid, 
+        playerPos, 
+        moveSteps: parseInt(document.getElementById('steps-left').innerText),
+        goalList, 
+        COLS, 
+        ROWS, 
+        isFogOn,
+        // 이 부분을 수정하여 movable 클래스가 저장되지 않도록 합니다.
+        tileData: Array.from(document.querySelectorAll('#board .cell.path')).map(el => ({
+            id: el.id, 
+            classes: Array.from(el.classList).filter(c => c !== 'movable')
+        }))
     };
+
     localStorage.setItem('save_' + saveName, JSON.stringify(gameState));
+    
     let allSaves = JSON.parse(localStorage.getItem('noriton_all_saves') || "[]");
-    allSaves = [saveName, ...allSaves.filter(n => n !== saveName)].slice(0, 10);
+    // 중복 이름 방지 및 최신순 정렬 (최대 10개)
+    allSaves = [saveName, ...allSaves.filter(n => n !== saveName)].slice(0, 10); 
     localStorage.setItem('noriton_all_saves', JSON.stringify(allSaves));
+
+    logTxt(`💾 [${saveName}] 탐사 기록이 저장되었습니다.`);
     updateSaveList();
-    logTxt(`💾 [${saveName}] 기록이 저장되었습니다.`);
 }
 
 function clearSave() {
@@ -1077,47 +1091,46 @@ function loadGame(data) {
     ROWS = data.ROWS;
     goalList = data.goalList; 
     isFogOn = data.isFogOn;
+    moveSteps = data.moveSteps; 
     
     showScreen('game-screen');
     const board = document.getElementById('board');
     board.style.gridTemplateColumns = `repeat(${COLS}, ${TILE_SIZE}px)`;
-    board.style.gridTemplateRows = `repeat(${ROWS}, ${TILE_SIZE}px)`; // 추가: 행 높이 고정
+    board.style.gridTemplateRows = `repeat(${ROWS}, ${TILE_SIZE}px)`;
     board.innerHTML = '';
 
-    // 맵 데이터 복구
-    data.tileData.forEach(tile => {
-        const cell = document.createElement('div');
-        cell.id = tile.id; 
-        cell.className = tile.classes.join(' ');
-        if(cell.classList.contains('start')) cell.innerText = "S";
-        if(cell.classList.contains('goal')) cell.innerText = "G";
-        board.appendChild(cell);
-    });
-
-    // 벽(Wall) 타일 재생성 및 grid 데이터 동기화
-    for(let y=0; y<ROWS; y++) {
-        for(let x=0; x<COLS; x++) {
-            if(!document.getElementById(`c-${x}-${y}`)) {
-                const wall = document.createElement('div');
-                wall.id = `c-${x}-${y}`; 
-                wall.className = 'cell wall';
-                board.appendChild(wall);
-                grid[y][x] = 0; // 벽 데이터 확실히 주입
+    // 핵심: 0,0부터 COLS,ROWS 끝까지 순서대로 스캔하며 생성
+    for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+            const cell = document.createElement('div');
+            cell.id = `c-${x}-${y}`;
+            
+            // 저장된 타일 데이터 중 현재 좌표(x, y)와 일치하는 데이터 찾기
+            const savedTile = data.tileData.find(t => t.id === `c-${x}-${y}`);
+            
+            if (savedTile) {
+                // 길(Path) 타일인 경우
+                cell.className = savedTile.classes.join(' ');
+                if (cell.classList.contains('start')) cell.innerText = "S";
+                if (cell.classList.contains('goal')) cell.innerText = "G";
+                grid[y][x] = 1;
             } else {
-                grid[y][x] = 1; // 길 데이터 확실히 주입
+                // 벽(Wall) 타일인 경우
+                cell.className = 'cell wall';
+                grid[y][x] = 0;
             }
+            board.appendChild(cell);
         }
     }
 
-    document.getElementById('steps-left').innerText = data.moveSteps;
-    moveSteps = data.moveSteps; // 전역 변수 동기화
+    document.getElementById('steps-left').innerText = moveSteps;
     
-    if(isFogOn) {
-        document.getElementById('board').classList.add('fog-mode');
+    if (isFogOn) {
+        board.classList.add('fog-mode');
         const btn = document.getElementById('fog-btn');
         btn.innerText = "발판 보이기 (OFF)";
-        btn.style.background = "#e67e22"; // 주황색 테마
-        btn.style.boxShadow  = "0 4px 0 #d35400";
+        btn.style.background = "#e67e22";
+        btn.style.boxShadow = "0 4px 0 #d35400";
     }
     
     updatePawn();
