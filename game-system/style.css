@@ -1471,6 +1471,22 @@ button {
   bottom: 22%;
 }
 
+.explore-cell.open-w::before {
+  left: 0;
+}
+
+.explore-cell.open-e::before {
+  right: 0;
+}
+
+.explore-cell.open-n::after {
+  top: 0;
+}
+
+.explore-cell.open-s::after {
+  bottom: 0;
+}
+
 .explore-cell.fortune::before,
 .explore-cell.fortune::after {
   box-shadow: 0 0 10px rgba(35, 139, 182, 0.62);
