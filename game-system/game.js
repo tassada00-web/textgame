@@ -107,6 +107,9 @@ const PRIMARY_STATS = [
 const CORE_SYNC_MESSAGE = "trpg-core:party-state";
 const CORE_COMBAT_START_REQUEST = "trpg-core:request-combat-start";
 const CORE_UNIT_STATUS_MESSAGE = "trpg-core:unit-status";
+const CORE_BOARD_STATE_REQUEST = "trpg-core:request-board-state";
+const CORE_BOARD_STATE_RESPONSE = "trpg-core:board-state";
+const CORE_BOARD_STATE_APPLY = "trpg-core:apply-board-state";
 const CORE_SYNC_PRIMARY_KEYS = PRIMARY_STATS.map(([key]) => key);
 
 const initialUnits = [
@@ -832,10 +835,22 @@ function applyCoreSyncToBattle(payload) {
 
 function handleCoreSyncMessage(event) {
   const message = event.data;
-  if (!message || message.type !== CORE_SYNC_MESSAGE || !message.payload) return;
+  if (!message) return;
+
+  if (message.type === CORE_BOARD_STATE_REQUEST) {
+    sendCoreBoardState(message.requestId);
+    return;
+  }
+
+  if (message.type === CORE_BOARD_STATE_APPLY) {
+    applyCoreBoardState(message.payload);
+    return;
+  }
+
+  if (message.type !== CORE_SYNC_MESSAGE || !message.payload) return;
 
   externalCoreState = message.payload;
-  if (externalCoreState.mode === "combat" || externalCoreState.openBattle) {
+  if (externalCoreState.openBattle || externalCoreState.combat?.combatants?.length) {
     applyCoreSyncToBattle(externalCoreState);
     return;
   }
@@ -2291,6 +2306,65 @@ function buildSave(name, id = crypto.randomUUID()) {
     units: structuredClone(units),
     savedAt: new Date().toLocaleString("ko-KR")
   };
+}
+
+function buildCoreBoardState() {
+  const state = buildSave("현재 보드", "current-board");
+  return {
+    schemaVersion: 3,
+    activeMode: state.activeMode,
+    exploration: state.exploration,
+    battle: state.battle,
+    savedMaps: getSaves(),
+    selectedSaveId,
+    capturedAt: new Date().toISOString()
+  };
+}
+
+function normalizeCoreBoardState(payload) {
+  const boardState = payload?.boardState ?? payload;
+  if (!boardState || typeof boardState !== "object") return null;
+  return {
+    activeMode: boardState.activeMode === "battle" ? "battle" : "exploration",
+    exploration: boardState.exploration && typeof boardState.exploration === "object"
+      ? structuredClone(boardState.exploration)
+      : null,
+    battle: boardState.battle && typeof boardState.battle === "object"
+      ? structuredClone(boardState.battle)
+      : null,
+    savedMaps: Array.isArray(boardState.savedMaps) ? structuredClone(boardState.savedMaps) : [],
+    selectedSaveId: boardState.selectedSaveId || null
+  };
+}
+
+function applyCoreBoardState(payload) {
+  const boardState = normalizeCoreBoardState(payload);
+  if (!boardState) {
+    setSaves([]);
+    selectedSaveId = null;
+    restoreBattleSave(null);
+    restoreExplorationSave(null);
+    showMode("exploration");
+    return;
+  }
+
+  setSaves(boardState.savedMaps);
+  selectedSaveId = boardState.savedMaps.some((save) => save.id === boardState.selectedSaveId)
+    ? boardState.selectedSaveId
+    : null;
+  restoreBattleSave(boardState.battle);
+  restoreExplorationSave(boardState.exploration);
+  showMode(boardState.activeMode);
+  if (!saveLoadModal.hidden || !mapModal.hidden) renderSaveList();
+}
+
+function sendCoreBoardState(requestId) {
+  if (!window.parent || window.parent === window) return;
+  window.parent.postMessage({
+    type: CORE_BOARD_STATE_RESPONSE,
+    requestId,
+    payload: buildCoreBoardState()
+  }, "*");
 }
 
 function openConfirm(title, message, onYes) {

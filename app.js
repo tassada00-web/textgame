@@ -19,7 +19,11 @@ const SAVE_KEY = "trpg-rpg-core:data:v1";
 const GAME_SYSTEM_SYNC_MESSAGE = "trpg-core:party-state";
 const GAME_SYSTEM_COMBAT_START_REQUEST = "trpg-core:request-combat-start";
 const GAME_SYSTEM_UNIT_STATUS_MESSAGE = "trpg-core:unit-status";
+const GAME_SYSTEM_BOARD_STATE_REQUEST = "trpg-core:request-board-state";
+const GAME_SYSTEM_BOARD_STATE_RESPONSE = "trpg-core:board-state";
+const GAME_SYSTEM_BOARD_STATE_APPLY = "trpg-core:apply-board-state";
 const GAME_SYSTEM_FRAME_ID = "gameSystemFrame";
+const GAME_SYSTEM_STATE_TIMEOUT = 1500;
 const GAME_SYSTEM_STAT_KEYS = {
   strength: "str",
   vitality: "con",
@@ -265,6 +269,7 @@ let defendStat = "speed";
 let activePartyPreviewIndex = 0;
 let temporaryUnitStatus = null;
 let pendingConfirmAction = null;
+const pendingBoardStateRequests = new Map();
 
 function createNewGame() {
   const characters = Object.fromEntries(
@@ -272,6 +277,9 @@ function createNewGame() {
       const clone = cloneData(character);
       clone.state = createState(clone.initialState);
       clone.partySlots = [null, null, null];
+      clone.boardState = null;
+      clone.coreCombat = null;
+      clone.explorationShell = null;
       return [clone.id, clone];
     }),
   );
@@ -279,16 +287,20 @@ function createNewGame() {
   return {
     activeCharacterId: BASE_CHARACTERS[0].id,
     mode: "profile",
-    exploration: {
-      cols: 10,
-      rows: 8,
-      partyX: 1,
-      partyY: 4,
-      obstacles: ["4,1", "6,2", "2,6", "7,5", "5,4"],
-    },
+    exploration: createDefaultExplorationShell(),
     characters,
     combat: null,
     logs: ["새 RPG 병합 앱을 시작했습니다."],
+  };
+}
+
+function createDefaultExplorationShell() {
+  return {
+    cols: 10,
+    rows: 8,
+    partyX: 1,
+    partyY: 4,
+    obstacles: ["4,1", "6,2", "2,6", "7,5", "5,4"],
   };
 }
 
@@ -312,26 +324,31 @@ function loadGame() {
   try {
     const parsed = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
     if (!parsed?.characters) return null;
-    parsed.exploration ??= {
-      cols: 10,
-      rows: 8,
-      partyX: 1,
-      partyY: 4,
-      obstacles: ["4,1", "6,2", "2,6", "7,5", "5,4"],
-    };
-    parsed.exploration.cols ??= 10;
-    parsed.exploration.rows ??= 8;
-    parsed.exploration.partyX ??= 1;
-    parsed.exploration.partyY ??= 4;
-    parsed.exploration.obstacles ??= ["4,1", "6,2", "2,6", "7,5", "5,4"];
+    const defaultExploration = createDefaultExplorationShell();
+    parsed.exploration ??= cloneData(defaultExploration);
+    parsed.exploration.cols ??= defaultExploration.cols;
+    parsed.exploration.rows ??= defaultExploration.rows;
+    parsed.exploration.partyX ??= defaultExploration.partyX;
+    parsed.exploration.partyY ??= defaultExploration.partyY;
+    parsed.exploration.obstacles ??= [...defaultExploration.obstacles];
     BASE_CHARACTERS.forEach((base) => {
       if (!parsed.characters[base.id]) {
         const clone = cloneData(base);
         clone.state = createState(clone.initialState);
         clone.partySlots = [null, null, null];
+        clone.boardState = null;
+        clone.coreCombat = null;
+        clone.explorationShell = null;
         parsed.characters[base.id] = clone;
       }
       parsed.characters[base.id].partySlots ??= [null, null, null];
+      parsed.characters[base.id].boardState ??= null;
+      parsed.characters[base.id].coreCombat ??= base.id === parsed.activeCharacterId && parsed.combat
+        ? cloneData(parsed.combat)
+        : null;
+      parsed.characters[base.id].explorationShell ??= base.id === parsed.activeCharacterId
+        ? cloneData(parsed.exploration)
+        : null;
     });
     return parsed;
   } catch {
@@ -339,9 +356,26 @@ function loadGame() {
   }
 }
 
+function syncCoreSessionToCharacter(character = getActiveCharacter()) {
+  if (!character) return;
+  character.coreCombat = game.combat ? cloneData(game.combat) : null;
+  character.explorationShell = cloneData(game.exploration || createDefaultExplorationShell());
+}
+
+function restoreCoreSessionFromCharacter(character = getActiveCharacter()) {
+  const fallback = createDefaultExplorationShell();
+  game.combat = character?.coreCombat ? cloneData(character.coreCombat) : null;
+  game.exploration = {
+    ...fallback,
+    ...(character?.explorationShell ? cloneData(character.explorationShell) : {}),
+  };
+  if (!Array.isArray(game.exploration.obstacles)) game.exploration.obstacles = [...fallback.obstacles];
+}
+
 function saveGame(silent = false) {
-  localStorage.setItem(SAVE_KEY, JSON.stringify(game));
+  syncCoreSessionToCharacter();
   if (!silent) addLog("저장했습니다.");
+  localStorage.setItem(SAVE_KEY, JSON.stringify(game));
 }
 
 function getActiveCharacter() {
@@ -522,7 +556,7 @@ function buildGameSystemSyncPayload(openBattle = false, reason = "sync") {
       obstacles: [...game.exploration.obstacles],
     },
     party: buildGameSystemPartyPayload(),
-    combat: game.combat
+    combat: game.mode === "combat" && game.combat
       ? {
         round: game.combat.round,
         turnIndex: game.combat.turnIndex,
@@ -535,15 +569,173 @@ function buildGameSystemSyncPayload(openBattle = false, reason = "sync") {
   };
 }
 
-function postGameSystemState({ openBattle = false, reason = "sync" } = {}) {
-  const frame = document.getElementById(GAME_SYSTEM_FRAME_ID);
-  if (!frame?.contentWindow) return;
+function getGameSystemTargetOrigin() {
+  return window.location.protocol === "file:" ? "*" : window.location.origin;
+}
 
-  const targetOrigin = window.location.protocol === "file:" ? "*" : window.location.origin;
-  frame.contentWindow.postMessage({
+function getGameSystemFrameWindow() {
+  return document.getElementById(GAME_SYSTEM_FRAME_ID)?.contentWindow || null;
+}
+
+function normalizeGameSystemBoardState(value) {
+  if (!value || typeof value !== "object") return null;
+  const savedMaps = Array.isArray(value.savedMaps) ? cloneData(value.savedMaps) : [];
+  const selectedSaveId = savedMaps.some((save) => save.id === value.selectedSaveId)
+    ? value.selectedSaveId
+    : null;
+  return {
+    schemaVersion: Number(value.schemaVersion || 3),
+    activeMode: value.activeMode === "battle" ? "battle" : "exploration",
+    exploration: value.exploration && typeof value.exploration === "object" ? cloneData(value.exploration) : null,
+    battle: value.battle && typeof value.battle === "object" ? cloneData(value.battle) : null,
+    savedMaps,
+    selectedSaveId,
+    capturedAt: value.capturedAt || new Date().toISOString(),
+    migratedFromLegacySaves: Boolean(value.migratedFromLegacySaves),
+  };
+}
+
+function buildRiaLegacyBoardState(boardState) {
+  const normalized = normalizeGameSystemBoardState(boardState);
+  if (!normalized?.savedMaps.length) return normalized;
+  const latest = normalizeGameSystemBoardState({
+    ...normalized.savedMaps[0],
+    savedMaps: normalized.savedMaps,
+    selectedSaveId: normalized.savedMaps[0].id,
+    capturedAt: normalized.capturedAt,
+    migratedFromLegacySaves: true,
+  });
+  return latest || normalized;
+}
+
+function syncExplorationShellFromBoardState(boardState) {
+  const battle = boardState?.battle;
+  if (!battle || typeof battle !== "object") return;
+  game.exploration.cols = clamp(Number(battle.cols) || game.exploration.cols, 4, 30);
+  game.exploration.rows = clamp(Number(battle.rows) || game.exploration.rows, 4, 30);
+  if (!Array.isArray(battle.units)) return;
+  const obstacles = battle.units
+    .filter((piece) => piece?.type === "obstacle" && Number.isFinite(Number(piece.x)) && Number.isFinite(Number(piece.y)))
+    .map((piece) => `${Number(piece.x)},${Number(piece.y)}`);
+  if (obstacles.length) game.exploration.obstacles = [...new Set(obstacles)];
+}
+
+function syncCoreCombatFromBoardState(boardState) {
+  if (!game.combat || !Array.isArray(boardState?.battle?.units)) return;
+  const unitsById = new Map(boardState.battle.units.map((piece) => [piece.id, piece]));
+  game.combat.combatants.forEach((combatant) => {
+    const piece = unitsById.get(combatant.id);
+    if (!piece) return;
+    combatant.x = clamp(Number(piece.x) || 0, 0, game.exploration.cols - 1);
+    combatant.y = clamp(Number(piece.y) || 0, 0, game.exploration.rows - 1);
+    combatant.hp = clamp(Number(piece.stats?.hp ?? combatant.hp), 0, combatant.maxHp);
+    combatant.stamina = clamp(Number(piece.stats?.stamina ?? combatant.stamina), 0, combatant.maxStamina);
+    syncCombatantToBacking(combatant);
+  });
+}
+
+function storeBoardStateForCharacter(character, boardState, { migrateLegacy = false } = {}) {
+  if (!character) return null;
+  const normalized = migrateLegacy && character.id === "ria" && !character.boardState
+    ? buildRiaLegacyBoardState(boardState)
+    : normalizeGameSystemBoardState(boardState);
+  if (!normalized) return null;
+  character.boardState = normalized;
+  if (character.id === game.activeCharacterId) {
+    syncExplorationShellFromBoardState(normalized);
+    syncCoreCombatFromBoardState(normalized);
+  }
+  return normalized;
+}
+
+function requestGameSystemBoardState() {
+  const frameWindow = getGameSystemFrameWindow();
+  if (!frameWindow) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const requestId = crypto.randomUUID();
+    const timeoutId = window.setTimeout(() => {
+      pendingBoardStateRequests.delete(requestId);
+      resolve(null);
+    }, GAME_SYSTEM_STATE_TIMEOUT);
+
+    pendingBoardStateRequests.set(requestId, { resolve, timeoutId });
+    try {
+      frameWindow.postMessage({
+        type: GAME_SYSTEM_BOARD_STATE_REQUEST,
+        requestId,
+      }, getGameSystemTargetOrigin());
+    } catch {
+      window.clearTimeout(timeoutId);
+      pendingBoardStateRequests.delete(requestId);
+      resolve(null);
+    }
+  });
+}
+
+function resolveBoardStateRequest(message) {
+  const pending = pendingBoardStateRequests.get(message?.requestId);
+  if (!pending) return false;
+  window.clearTimeout(pending.timeoutId);
+  pendingBoardStateRequests.delete(message.requestId);
+  pending.resolve(normalizeGameSystemBoardState(message.payload));
+  return true;
+}
+
+async function captureActiveCharacterBoardState({ migrateLegacy = false } = {}) {
+  const boardState = await requestGameSystemBoardState();
+  if (!boardState) return null;
+  const stored = storeBoardStateForCharacter(getActiveCharacter(), boardState, { migrateLegacy });
+  if (stored) saveGame(true);
+  return stored;
+}
+
+async function ensureActiveCharacterBoardState({ migrateLegacy = false } = {}) {
+  const character = getActiveCharacter();
+  if (character.boardState) {
+    character.boardState = normalizeGameSystemBoardState(character.boardState);
+    syncExplorationShellFromBoardState(character.boardState);
+    return character.boardState;
+  }
+  if (!migrateLegacy || character.id !== "ria") return null;
+  return captureActiveCharacterBoardState({ migrateLegacy: true });
+}
+
+function postGameSystemBoardState(boardState, reason = "board-state-sync", activeMode = null) {
+  const frameWindow = getGameSystemFrameWindow();
+  if (!frameWindow) return;
+  const normalized = normalizeGameSystemBoardState(boardState);
+  if (normalized && activeMode) normalized.activeMode = activeMode;
+  frameWindow.postMessage({
+    type: GAME_SYSTEM_BOARD_STATE_APPLY,
+    payload: {
+      reason,
+      boardState: normalized,
+    },
+  }, getGameSystemTargetOrigin());
+}
+
+async function syncActiveCharacterBoardStateToFrame({ reason = "board-state-sync", migrateLegacy = false } = {}) {
+  await ensureActiveCharacterBoardState({ migrateLegacy });
+  const character = getActiveCharacter();
+  if (!character.boardState && migrateLegacy && character.id === "ria") return;
+  postGameSystemBoardState(character.boardState, reason);
+  syncGameSystemFrame({ openBattle: game.mode === "combat" && Boolean(game.combat), reason });
+}
+
+async function saveFullGame(silent = false) {
+  await captureActiveCharacterBoardState({ migrateLegacy: true });
+  saveGame(silent);
+}
+
+function postGameSystemState({ openBattle = false, reason = "sync" } = {}) {
+  const frameWindow = getGameSystemFrameWindow();
+  if (!frameWindow) return;
+
+  frameWindow.postMessage({
     type: GAME_SYSTEM_SYNC_MESSAGE,
     payload: buildGameSystemSyncPayload(openBattle, reason),
-  }, targetOrigin);
+  }, getGameSystemTargetOrigin());
 }
 
 function syncGameSystemFrame(options = {}) {
@@ -553,6 +745,11 @@ function syncGameSystemFrame(options = {}) {
 function handleGameSystemMessage(event) {
   const frame = document.getElementById(GAME_SYSTEM_FRAME_ID);
   if (!frame?.contentWindow || event.source !== frame.contentWindow) return;
+  if (event.data?.type === GAME_SYSTEM_BOARD_STATE_RESPONSE) {
+    resolveBoardStateRequest(event.data);
+    return;
+  }
+
   if (event.data?.type === GAME_SYSTEM_UNIT_STATUS_MESSAGE) {
     temporaryUnitStatus = normalizeTemporaryUnitStatus(event.data.payload);
     renderSheet();
@@ -594,13 +791,17 @@ function addLog(message) {
 }
 
 function setMode(mode) {
-  if (mode === "combat" && !game.combat) {
-    startCombat();
-    return;
-  }
   game.mode = mode;
   renderAll();
-  syncGameSystemFrame({ openBattle: mode === "combat" && Boolean(game.combat), reason: `mode:${mode}` });
+  if (mode === "explore" || mode === "combat") {
+    const boardMode = mode === "combat" ? "battle" : "exploration";
+    if (getActiveCharacter().boardState) {
+      postGameSystemBoardState(getActiveCharacter().boardState, `mode:${mode}`, boardMode);
+      syncGameSystemFrame({ openBattle: false, reason: `mode:${mode}` });
+      return;
+    }
+  }
+  syncGameSystemFrame({ openBattle: mode === "combat", reason: `mode:${mode}` });
 }
 
 function renderAll() {
@@ -736,6 +937,7 @@ function renderBoard() {
   const { cols, rows } = game.exploration;
   const isProfile = game.mode === "profile";
   const inCombat = game.mode === "combat" && game.combat;
+  const isCombatMode = game.mode === "combat";
   const boardZone = document.querySelector(".board-zone");
   const playPanel = document.querySelector(".play-panel");
   const embeddedFrame = document.querySelector(".embedded-game-frame");
@@ -768,8 +970,8 @@ function renderBoard() {
   boardFrame?.classList.toggle("explore-frame", !inCombat);
   board.innerHTML = "";
 
-  document.getElementById("boardKicker").textContent = inCombat ? "Battle Map" : "Explore Map";
-  document.getElementById("boardTitle").textContent = inCombat ? "전술 배틀맵" : "파티 탐험맵";
+  document.getElementById("boardKicker").textContent = isCombatMode ? "Battle Map" : "Explore Map";
+  document.getElementById("boardTitle").textContent = isCombatMode ? "전술 배틀맵" : "파티 탐험맵";
   document.getElementById("boardMeta").innerHTML = inCombat
     ? `<span>Round ${game.combat?.round || 1}</span><span>${cols} x ${rows}</span>`
     : `<span>Party (${game.exploration.partyX + 1}, ${game.exploration.partyY + 1})</span><span>${cols} x ${rows}</span>`;
@@ -1987,7 +2189,7 @@ function extractTotalsFromWorkbook(workbook) {
   };
 }
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   if (event.target.closest("[data-close-temp-status]")) {
     closeTemporaryUnitStatus();
     return;
@@ -1996,7 +2198,10 @@ document.addEventListener("click", (event) => {
   const characterButton = event.target.closest("[data-character]");
   if (characterButton) {
     closeTemporaryUnitStatus({ rerender: false });
+    syncCoreSessionToCharacter();
+    await captureActiveCharacterBoardState({ migrateLegacy: true });
     game.activeCharacterId = characterButton.dataset.character;
+    restoreCoreSessionFromCharacter();
     activeTab = "overview";
     game.mode = "profile";
     selectedCombatantId = null;
@@ -2004,7 +2209,7 @@ document.addEventListener("click", (event) => {
     addLog(`${getActiveCharacter().name} 이야기를 선택했습니다.`);
     saveGame(true);
     renderAll();
-    syncGameSystemFrame({ openBattle: false, reason: "character-switch" });
+    syncActiveCharacterBoardStateToFrame({ reason: "character-switch", migrateLegacy: true });
     return;
   }
 
@@ -2031,7 +2236,7 @@ document.addEventListener("click", (event) => {
   }
 
   if (event.target.closest("#saveButton")) {
-    saveGame();
+    await saveFullGame();
     renderAll();
     return;
   }
@@ -2045,6 +2250,7 @@ document.addEventListener("click", (event) => {
       closeTemporaryUnitStatus({ commit: false, rerender: false });
       addLog("저장 데이터를 초기화했습니다.");
       renderAll();
+      postGameSystemBoardState(null, "reset");
       syncGameSystemFrame({ openBattle: false, reason: "reset" });
     });
     return;
@@ -2220,9 +2426,9 @@ document.getElementById("confirmForm").addEventListener("submit", (event) => {
 });
 
 document.getElementById(GAME_SYSTEM_FRAME_ID)?.addEventListener("load", () => {
-  syncGameSystemFrame({ openBattle: game.mode === "combat" && Boolean(game.combat), reason: "frame-load" });
+  syncActiveCharacterBoardStateToFrame({ reason: "frame-load", migrateLegacy: true });
 });
 window.addEventListener("message", handleGameSystemMessage);
 
 renderAll();
-syncGameSystemFrame({ openBattle: game.mode === "combat" && Boolean(game.combat), reason: "initial" });
+syncActiveCharacterBoardStateToFrame({ reason: "initial", migrateLegacy: true });
