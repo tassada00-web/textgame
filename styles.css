@@ -412,6 +412,16 @@ h3 {
   gap: 12px;
 }
 
+.play-panel.uses-game-system {
+  overflow: hidden;
+  background: #050607;
+}
+
+.uses-game-system .mode-toolbar,
+.uses-game-system .turn-panel {
+  display: none !important;
+}
+
 .mode-toolbar {
   display: flex;
   align-items: center;
@@ -445,6 +455,38 @@ h3 {
 
 .board-zone {
   padding: 14px;
+}
+
+.board-zone-embedded {
+  display: grid;
+  min-height: calc(100vh - 120px);
+  padding: 0;
+  background: #050607;
+}
+
+.board-zone-embedded .board-head {
+  display: none;
+}
+
+.embedded-game-frame {
+  min-height: calc(100vh - 120px);
+  border: 2px solid #f07a00;
+  border-radius: 8px;
+  background: #050607;
+  overflow: hidden;
+}
+
+.embedded-game-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 120px);
+  border: 0;
+  background: #050607;
+}
+
+.legacy-board-host[hidden] {
+  display: none !important;
 }
 
 .board-meta {
@@ -1269,6 +1311,12 @@ h3 {
   .board-frame {
     min-height: 420px;
     padding: 10px;
+  }
+
+  .board-zone-embedded,
+  .embedded-game-frame,
+  .embedded-game-frame iframe {
+    min-height: 720px;
   }
 
   .board {
