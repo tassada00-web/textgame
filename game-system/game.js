@@ -106,6 +106,7 @@ const PRIMARY_STATS = [
 
 const CORE_SYNC_MESSAGE = "trpg-core:party-state";
 const CORE_COMBAT_START_REQUEST = "trpg-core:request-combat-start";
+const CORE_UNIT_STATUS_MESSAGE = "trpg-core:unit-status";
 const CORE_SYNC_PRIMARY_KEYS = PRIMARY_STATS.map(([key]) => key);
 
 const initialUnits = [
@@ -889,8 +890,52 @@ function render() {
   });
 }
 
+function buildUnitStatusPayload(piece) {
+  ensureUnitShape(piece);
+  return {
+    id: piece.id,
+    type: piece.type,
+    label: piece.label,
+    name: piece.stats.name,
+    hp: piece.stats.hp,
+    maxHp: piece.stats.maxHp,
+    stamina: piece.stats.stamina,
+    maxStamina: piece.stats.maxStamina,
+    damage: piece.stats.damage || 0,
+    armor: piece.stats.armor || 0,
+    primary: { ...piece.stats.primary },
+    bonus: { ...piece.stats.bonus },
+    skills: piece.stats.skills.map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      stat: skill.stat,
+      desc: skill.desc || ""
+    })),
+    core: piece.core || null
+  };
+}
+
+function postUnitStatusToParent(piece) {
+  if (!window.parent || window.parent === window) return false;
+  window.parent.postMessage({
+    type: CORE_UNIT_STATUS_MESSAGE,
+    payload: buildUnitStatusPayload(piece)
+  }, "*");
+  return true;
+}
+
 function openUnitStatus(id) {
   selectedUnitId = id;
+  const piece = getUnit(id);
+  if (!piece) return;
+
+  if (postUnitStatusToParent(piece)) {
+    statusSheetOpen = false;
+    render();
+    renderSheet();
+    return;
+  }
+
   statusSheetOpen = true;
   render();
   renderSheet();

@@ -18,6 +18,7 @@ const STAT_LABELS = Object.fromEntries(STAT_DEFS.map((stat) => [stat.key, stat.l
 const SAVE_KEY = "trpg-rpg-core:data:v1";
 const GAME_SYSTEM_SYNC_MESSAGE = "trpg-core:party-state";
 const GAME_SYSTEM_COMBAT_START_REQUEST = "trpg-core:request-combat-start";
+const GAME_SYSTEM_UNIT_STATUS_MESSAGE = "trpg-core:unit-status";
 const GAME_SYSTEM_FRAME_ID = "gameSystemFrame";
 const GAME_SYSTEM_STAT_KEYS = {
   strength: "str",
@@ -262,6 +263,7 @@ let selectedTargetId = null;
 let attackStat = "precision";
 let defendStat = "speed";
 let activePartyPreviewIndex = 0;
+let temporaryUnitStatus = null;
 let pendingConfirmAction = null;
 
 function createNewGame() {
@@ -551,6 +553,12 @@ function syncGameSystemFrame(options = {}) {
 function handleGameSystemMessage(event) {
   const frame = document.getElementById(GAME_SYSTEM_FRAME_ID);
   if (!frame?.contentWindow || event.source !== frame.contentWindow) return;
+  if (event.data?.type === GAME_SYSTEM_UNIT_STATUS_MESSAGE) {
+    temporaryUnitStatus = normalizeTemporaryUnitStatus(event.data.payload);
+    renderSheet();
+    return;
+  }
+
   if (event.data?.type !== GAME_SYSTEM_COMBAT_START_REQUEST) return;
 
   if (!game.combat) {
@@ -1069,6 +1077,11 @@ function renderSheet() {
   document.querySelectorAll(".sheet-tab").forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset.tab === activeTab);
   });
+  if (temporaryUnitStatus) {
+    document.getElementById("sheetContent").innerHTML = renderTemporaryUnitStatus(temporaryUnitStatus);
+    return;
+  }
+
   const character = getActiveCharacter();
   const renderers = {
     overview: () => renderOverview(character),
@@ -1078,6 +1091,110 @@ function renderSheet() {
     party: () => renderPartySheet(character),
   };
   document.getElementById("sheetContent").innerHTML = (renderers[activeTab] || renderers.overview)();
+}
+
+function normalizeTemporaryUnitStatus(payload = {}) {
+  const primary = payload.primary && typeof payload.primary === "object" ? payload.primary : {};
+  const bonus = payload.bonus && typeof payload.bonus === "object" ? payload.bonus : {};
+  const skills = Array.isArray(payload.skills) ? payload.skills : [];
+  const numberValue = (value, fallback = 0) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  };
+
+  return {
+    id: String(payload.id || ""),
+    type: payload.type || "ally",
+    label: String(payload.label || ""),
+    name: String(payload.name || payload.label || "이름 없는 유닛"),
+    hp: numberValue(payload.hp),
+    maxHp: Math.max(1, numberValue(payload.maxHp, payload.hp || 1)),
+    stamina: numberValue(payload.stamina),
+    maxStamina: Math.max(0, numberValue(payload.maxStamina, payload.stamina || 0)),
+    damage: numberValue(payload.damage),
+    armor: numberValue(payload.armor),
+    primary: Object.fromEntries(Object.keys(SHORT_TO_FULL).map((key) => [key, numberValue(primary[key])])),
+    bonus: Object.fromEntries(Object.keys(SHORT_TO_FULL).map((key) => [key, numberValue(bonus[key])])),
+    skills: skills.map((skill) => ({
+      name: String(skill.name || "이름 없는 스킬"),
+      stat: skill.stat || "",
+      desc: String(skill.desc || skill.body || ""),
+    })),
+  };
+}
+
+function getTemporaryUnitTypeLabel(type) {
+  return {
+    player: "플레이어",
+    ally: "아군",
+    enemy: "적군",
+    obstacle: "장애물",
+  }[type] || "유닛";
+}
+
+function getTemporaryUnitStatLabel(shortKey) {
+  return STAT_LABELS[SHORT_TO_FULL[shortKey] || shortKey] || shortKey;
+}
+
+function getTemporaryUnitStatTotal(unit, shortKey) {
+  return Number(unit.primary?.[shortKey] || 0) + Number(unit.bonus?.[shortKey] || 0);
+}
+
+function renderTemporaryUnitStatus(unit) {
+  const statKeys = ["str", "con", "spd", "pre", "int", "wis", "cha"];
+  const speed = getTemporaryUnitStatTotal(unit, "spd");
+  return `
+    <section class="temporary-unit-sheet">
+      <article class="party-mini-page temporary-unit-page">
+        <div class="mini-page-head">
+          <div>
+            <span class="tiny-label">임시 상태창</span>
+            <h2>${escapeHtml(unit.name)}</h2>
+            <p>${escapeHtml(getTemporaryUnitTypeLabel(unit.type))}${unit.label ? ` · ${escapeHtml(unit.label)}` : ""}</p>
+          </div>
+          <div class="mini-page-actions">
+            <button class="mini-button" type="button" data-close-temp-status>닫기</button>
+          </div>
+        </div>
+
+        <section class="mini-metrics temp-unit-metrics">
+          <article><span>HP</span><strong>${unit.hp}/${unit.maxHp}</strong></article>
+          <article><span>SP</span><strong>${unit.stamina}/${unit.maxStamina}</strong></article>
+          <article><span>속도</span><strong>${speed}</strong></article>
+          <article><span>데미지</span><strong>${unit.damage}</strong></article>
+          <article><span>방어</span><strong>${unit.armor}</strong></article>
+        </section>
+
+        <section class="stat-table mini-stat-table">
+          <div class="stat-row is-head">
+            <span>능력치</span><span class="number">기본</span><span class="number">보너스</span><span class="number">결과</span>
+          </div>
+          ${statKeys.map((key) => `
+            <div class="stat-row temp-unit-stat-row">
+              <span class="stat-name">${escapeHtml(getTemporaryUnitStatLabel(key))}</span>
+              <span class="number">${unit.primary[key] || 0}</span>
+              <span class="number">${formatSigned(unit.bonus[key] || 0)}</span>
+              <span class="number">${getTemporaryUnitStatTotal(unit, key)}</span>
+            </div>
+          `).join("")}
+        </section>
+
+        <section class="mini-skill-list">
+          <div class="card-head">
+            <h3>스킬</h3>
+            <span class="small-muted">${unit.skills.length}</span>
+          </div>
+          ${unit.skills.length ? unit.skills.map((skill) => `
+            <article class="mini-skill-card">
+              <strong>${escapeHtml(skill.name)}</strong>
+              <span>${escapeHtml(getTemporaryUnitStatLabel(skill.stat))}</span>
+              ${skill.desc ? `<p>${escapeHtml(skill.desc)}</p>` : ""}
+            </article>
+          `).join("") : `<p class="small-muted">등록된 스킬이 없습니다.</p>`}
+        </section>
+      </article>
+    </section>
+  `;
 }
 
 function renderOverview(character) {
@@ -1746,6 +1863,12 @@ function extractTotalsFromWorkbook(workbook) {
 }
 
 document.addEventListener("click", (event) => {
+  if (event.target.closest("[data-close-temp-status]")) {
+    temporaryUnitStatus = null;
+    renderSheet();
+    return;
+  }
+
   const characterButton = event.target.closest("[data-character]");
   if (characterButton) {
     game.activeCharacterId = characterButton.dataset.character;
@@ -1753,6 +1876,7 @@ document.addEventListener("click", (event) => {
     game.mode = "profile";
     selectedCombatantId = null;
     selectedTargetId = null;
+    temporaryUnitStatus = null;
     addLog(`${getActiveCharacter().name} 이야기를 선택했습니다.`);
     saveGame(true);
     renderAll();
@@ -1768,6 +1892,7 @@ document.addEventListener("click", (event) => {
 
   const tab = event.target.closest("[data-tab]");
   if (tab) {
+    temporaryUnitStatus = null;
     activeTab = tab.dataset.tab;
     renderSheet();
     return;
@@ -1792,6 +1917,7 @@ document.addEventListener("click", (event) => {
       game = createNewGame();
       activeTab = "overview";
       activeBagCategory = BAG_CATEGORIES[0].key;
+      temporaryUnitStatus = null;
       addLog("저장 데이터를 초기화했습니다.");
       renderAll();
       syncGameSystemFrame({ openBattle: false, reason: "reset" });
