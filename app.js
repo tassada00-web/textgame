@@ -619,14 +619,6 @@ function renderTopbar() {
   const active = getActiveCharacter();
   document.getElementById("activeSigil").textContent = active.sigil;
   document.getElementById("activeName").textContent = `${active.name} 이야기`;
-  document.getElementById("characterSwitcher").innerHTML = Object.values(game.characters)
-    .map((character) => `
-      <button class="character-pill ${character.id === active.id ? "is-active" : ""}" type="button" data-character="${character.id}">
-        <span>${escapeHtml(character.sigil)}</span>
-        <strong>${escapeHtml(character.name)}</strong>
-      </button>
-    `)
-    .join("");
 }
 
 function renderHeroCard() {
@@ -742,8 +734,27 @@ function renderMode() {
 function renderBoard() {
   const board = document.getElementById("board");
   const { cols, rows } = game.exploration;
+  const isProfile = game.mode === "profile";
   const inCombat = game.mode === "combat" && game.combat;
+  const boardZone = document.querySelector(".board-zone");
+  const playPanel = document.querySelector(".play-panel");
+  const embeddedFrame = document.querySelector(".embedded-game-frame");
+  const statusMainBoard = document.getElementById("statusMainBoard");
   const boardFrame = board.closest(".board-frame");
+
+  playPanel?.classList.toggle("is-profile-mode", isProfile);
+  boardZone?.classList.toggle("is-status-board", isProfile);
+  if (embeddedFrame) embeddedFrame.hidden = isProfile;
+  if (statusMainBoard) statusMainBoard.hidden = !isProfile;
+
+  if (isProfile) {
+    document.getElementById("boardKicker").textContent = "Status";
+    document.getElementById("boardTitle").textContent = "메인 캐릭터 목록";
+    document.getElementById("boardMeta").innerHTML = `<span>${Object.keys(game.characters).length}명</span>`;
+    if (statusMainBoard) statusMainBoard.innerHTML = renderStatusMainBoard();
+    return;
+  }
+
   board.style.setProperty("--cols", cols);
   board.style.setProperty("--rows", rows);
   board.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
@@ -778,6 +789,48 @@ function renderBoard() {
     renderExploreBoardPiece();
   }
   renderBoardStatusPanel();
+}
+
+function renderStatusMainBoard() {
+  const characters = Object.values(game.characters);
+  return `
+    <section class="status-board-intro">
+      <div>
+        <p class="section-kicker">Main Characters</p>
+        <h2>메인 캐릭터</h2>
+      </div>
+      <p>상태창에서 볼 메인 캐릭터를 선택하세요. 각 캐릭터는 자기 이야기, 저장 데이터, 파티 슬롯을 따로 유지합니다.</p>
+    </section>
+    <section class="main-character-list">
+      ${characters.map((character) => renderMainCharacterCard(character)).join("")}
+    </section>
+  `;
+}
+
+function renderMainCharacterCard(character) {
+  const active = character.id === game.activeCharacterId;
+  const hp = getResourceCurrent(character, "hp");
+  const maxHp = getResourceMax(character, "hp");
+  const stamina = getResourceCurrent(character, "stamina");
+  const maxStamina = getResourceMax(character, "stamina");
+  const activeMembers = (character.partySlots || []).filter((member) => member && member.active !== false).length;
+  return `
+    <button class="main-character-card ${active ? "is-active" : ""}" type="button" data-character="${character.id}">
+      <span class="main-character-image">
+        <img src="${escapeHtml(character.image)}" alt="${escapeHtml(character.name)} 프로필" />
+      </span>
+      <span class="main-character-body">
+        <span class="tiny-label">${escapeHtml(character.role)}</span>
+        <strong>${escapeHtml(character.name)}</strong>
+        <small>${escapeHtml(character.tendency || "")}</small>
+        <span class="main-character-stats">
+          <b>HP ${hp}/${maxHp}</b>
+          <b>SP ${stamina}/${maxStamina}</b>
+          <b>파티 ${activeMembers}/3</b>
+        </span>
+      </span>
+    </button>
+  `;
 }
 
 function isObstacle(x, y) {
@@ -1953,6 +2006,7 @@ document.addEventListener("click", (event) => {
 
   const modeButton = event.target.closest("[data-mode]");
   if (modeButton) {
+    closeTemporaryUnitStatus({ rerender: false });
     setMode(modeButton.dataset.mode);
     return;
   }

@@ -133,6 +133,17 @@ h3 {
   flex-wrap: wrap;
 }
 
+.main-mode-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(92px, 1fr));
+  gap: 4px;
+  min-width: min(420px, 100%);
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
 .character-pill {
   display: inline-grid;
   grid-template-columns: 32px minmax(0, auto);
@@ -417,6 +428,11 @@ h3 {
   background: #050607;
 }
 
+.play-panel.uses-game-system.is-profile-mode {
+  overflow: visible;
+  background: transparent;
+}
+
 .uses-game-system .mode-toolbar,
 .uses-game-system .turn-panel {
   display: none !important;
@@ -464,8 +480,22 @@ h3 {
   background: #050607;
 }
 
+.board-zone-embedded.is-status-board {
+  align-content: start;
+  gap: 14px;
+  padding: 14px;
+  background: var(--surface);
+}
+
 .board-zone-embedded .board-head {
   display: none;
+}
+
+.board-zone-embedded.is-status-board .board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .embedded-game-frame {
@@ -487,6 +517,109 @@ h3 {
 
 .legacy-board-host[hidden] {
   display: none !important;
+}
+
+.status-main-board {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.status-board-intro {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.status-board-intro p:last-child {
+  max-width: 520px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: right;
+}
+
+.main-character-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.main-character-card {
+  display: grid;
+  grid-template-rows: 210px auto;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: none;
+}
+
+.main-character-card.is-active {
+  border-color: rgba(184, 63, 81, 0.45);
+  box-shadow: 0 0 0 3px rgba(184, 63, 81, 0.1);
+}
+
+.main-character-image {
+  min-width: 0;
+  min-height: 0;
+  background: #e9eef0;
+}
+
+.main-character-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.main-character-body {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.main-character-body strong,
+.main-character-body small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main-character-body strong {
+  font-size: 1.15rem;
+}
+
+.main-character-body small {
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.main-character-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.main-character-stats b {
+  min-width: 0;
+  padding: 6px 7px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-size: 0.76rem;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .board-meta {
@@ -1317,6 +1450,10 @@ h3 {
     justify-content: stretch;
   }
 
+  .main-mode-switcher {
+    width: 100%;
+  }
+
   .top-actions button,
   .mode-actions button {
     flex: 1;
@@ -1362,6 +1499,16 @@ h3 {
     grid-template-columns: 1fr;
   }
 
+  .status-board-intro {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .status-board-intro p:last-child {
+    max-width: none;
+    text-align: left;
+  }
+
   .mini-page-actions {
     justify-content: start;
   }
@@ -1373,6 +1520,10 @@ h3 {
   .top-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .main-mode-switcher {
+    grid-template-columns: 1fr;
   }
 
   .character-pill {
