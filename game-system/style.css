@@ -401,11 +401,12 @@ button:hover {
 }
 
 .app {
+  position: relative;
   height: 100dvh;
   max-height: 100dvh;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 330px minmax(0, 1fr) 620px;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) 92px;
   gap: 10px;
   padding: 10px;
@@ -432,9 +433,9 @@ button:hover {
   --cols: 10;
   --rows: 8;
   --cell: min(
-    calc((100vw - 1040px) / var(--cols)),
+    calc((100vw - 120px) / var(--cols)),
     calc((100vh - 210px) / var(--rows)),
-    58px
+    64px
   );
   display: grid;
   grid-template-columns: repeat(var(--cols), var(--cell));
@@ -550,40 +551,84 @@ button:hover {
 }
 
 .detail-bar {
-  min-height: 0;
-  max-height: 100%;
+  position: fixed;
+  inset: 14px;
+  z-index: 50;
+  width: min(1080px, calc(100vw - 28px));
+  height: min(920px, calc(100vh - 28px));
+  margin: auto;
   border: 2px solid var(--line);
   border-radius: 10px;
   background: #0b0b0b;
-  padding: 14px;
-  overflow: hidden;
+  padding: 16px;
+  overflow: auto;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.72), 0 0 0 1px rgba(240, 122, 0, 0.2);
 }
 
 .duel-bar {
-  min-height: 0;
-  max-height: 100%;
+  position: fixed;
+  left: 50%;
+  bottom: 104px;
+  z-index: 40;
+  width: min(980px, calc(100vw - 28px));
+  max-height: min(42vh, 340px);
+  transform: translateX(-50%);
   border: 2px solid var(--line);
   border-radius: 10px;
-  background: #0b0b0b;
-  padding: 12px;
-  overflow: hidden;
+  background: rgba(11, 11, 11, 0.98);
+  padding: 10px;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: minmax(110px, auto) minmax(190px, 0.8fr) minmax(300px, 1.35fr) minmax(210px, 0.9fr) auto;
+  gap: 8px;
+  align-items: stretch;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(240, 122, 0, 0.25);
 }
 
 .duel-bar header {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 2px;
-  margin-bottom: 8px;
+  margin-bottom: 0;
+  min-width: 110px;
 }
 
 .duel-bar header span {
+  grid-column: 1;
   color: var(--line);
   font-size: 12px;
   font-weight: 900;
 }
 
 .duel-bar header strong {
+  grid-column: 1;
   font-size: 16px;
   line-height: 1.15;
+}
+
+.mini-close,
+.sheet-close {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+  border-color: rgba(255, 255, 255, 0.22);
+  background: #242424;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.mini-close {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
+.sheet-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 2;
 }
 
 .duel-units {
@@ -594,6 +639,9 @@ button:hover {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .duel-card {
@@ -604,7 +652,7 @@ button:hover {
 }
 
 .duel-card + .duel-card {
-  margin-top: 6px;
+  margin-top: 0;
 }
 
 .duel-card small {
@@ -623,14 +671,15 @@ button:hover {
 }
 
 .duel-units p {
+  grid-column: 1 / -1;
   margin: 0;
 }
 
 .duel-stats {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .duel-side {
@@ -648,7 +697,7 @@ button:hover {
 
 .duel-stat-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
 }
 
@@ -670,8 +719,8 @@ button:hover {
 }
 
 .duel-result {
-  margin-top: 8px;
-  min-height: 116px;
+  margin-top: 0;
+  min-height: auto;
   border: 1px solid #333;
   border-radius: 6px;
   background: #050505;
@@ -696,12 +745,14 @@ button:hover {
 }
 
 .duel-winner {
+  grid-column: 1 / -1;
   margin-top: 4px;
   color: #ffcf75;
   font-weight: 900;
 }
 
 .duel-diff {
+  grid-column: 1 / -1;
   border-top: 1px solid #333;
   border-bottom: 1px solid #333;
   padding: 8px 0;
@@ -710,13 +761,14 @@ button:hover {
 }
 
 .duel-damage {
+  grid-column: 1 / -1;
   color: #ff9b42;
   font-size: 13px;
   font-weight: 900;
 }
 
 .damage-toggle {
-  margin-top: 10px;
+  margin-top: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -753,12 +805,12 @@ button:hover {
 
 .unit-sheet {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto;
   gap: 8px;
-  height: 100%;
-  max-height: 100%;
-  min-height: 0;
-  overflow: hidden;
+  height: auto;
+  min-height: 100%;
+  max-height: none;
+  overflow: visible;
 }
 
 .sheet-head,
@@ -772,6 +824,10 @@ button:hover {
 .sheet-head > div {
   min-width: 0;
   flex: 1;
+}
+
+.detail-bar .sheet-head {
+  padding-right: 42px;
 }
 
 .sheet-type {
@@ -831,8 +887,8 @@ button:hover {
 
 .unit-sheet section:last-child {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
+  grid-template-rows: auto auto;
+  overflow: visible;
 }
 
 .unit-sheet h2 {
@@ -940,7 +996,7 @@ button:hover {
   gap: 12px;
   min-height: 0;
   max-height: none;
-  overflow: auto;
+  overflow: visible;
   padding-right: 4px;
 }
 
@@ -1008,6 +1064,10 @@ button:hover {
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
+}
+
+.duel-bar .webhook-field {
+  display: none;
 }
 
 .skill-empty {
@@ -1141,7 +1201,7 @@ button:hover {
 .modal {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 80;
   display: grid;
   place-items: center;
   padding: 16px;
@@ -1326,12 +1386,12 @@ button:hover {
   }
 
   .app {
-    height: auto;
-    max-height: none;
+    height: 100dvh;
+    max-height: 100dvh;
     min-height: 100dvh;
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto auto;
-    overflow: visible;
+    grid-template-rows: minmax(420px, 1fr) auto;
+    overflow: hidden;
   }
 
   .board-wrap {
@@ -1341,6 +1401,31 @@ button:hover {
 
   .board {
     --cell: min(calc((100vw - 54px) / var(--cols)), 50px);
+  }
+
+  .duel-bar {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    max-height: min(84vh, 640px);
+    transform: none;
+    grid-template-columns: 1fr;
+  }
+
+  .duel-stats,
+  .duel-units {
+    grid-template-columns: 1fr;
+  }
+
+  .duel-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .detail-bar {
+    inset: 8px;
+    width: auto;
+    height: auto;
   }
 
   .control-bar {

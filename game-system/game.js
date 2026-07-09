@@ -27,6 +27,7 @@ const logIcon = document.querySelector("#logIcon");
 const emptyDetail = document.querySelector("#emptyDetail");
 const unitSheet = document.querySelector("#unitSheet");
 const detailBar = document.querySelector("#detailBar");
+const closeDetailBar = document.querySelector("#closeDetailBar");
 const sheetType = document.querySelector("#sheetType");
 const sheetName = document.querySelector("#sheetName");
 const sheetImportBox = document.querySelector("#sheetImportBox");
@@ -39,10 +40,12 @@ const resetMap = document.querySelector("#resetMap");
 const editMap = document.querySelector("#editMap");
 const saveLoadMap = document.querySelector("#saveLoadMap");
 const captureMapImage = document.querySelector("#captureMapImage");
+const duelBar = document.querySelector("#duelBar");
 const duelTitle = document.querySelector("#duelTitle");
 const duelUnits = document.querySelector("#duelUnits");
 const duelStats = document.querySelector("#duelStats");
 const duelResult = document.querySelector("#duelResult");
+const closeDuelBar = document.querySelector("#closeDuelBar");
 const skipDamageCalculation = document.querySelector("#skipDamageCalculation");
 const discordWebhook = document.querySelector("#discordWebhook");
 const mapModal = document.querySelector("#mapModal");
@@ -126,6 +129,7 @@ let selectedUnitId = null;
 let drag = null;
 let skillDrag = null;
 let duel = null;
+let statusSheetOpen = false;
 let idCounter = 100;
 let selectedSaveId = null;
 let pendingConfirm = null;
@@ -885,14 +889,29 @@ function render() {
   });
 }
 
+function openUnitStatus(id) {
+  selectedUnitId = id;
+  statusSheetOpen = true;
+  render();
+  renderSheet();
+}
+
+function closeUnitStatus() {
+  statusSheetOpen = false;
+  renderSheet();
+}
+
 function renderSheet() {
   const piece = getUnit(selectedUnitId);
-  const showSheet = Boolean(piece);
+  if (statusSheetOpen && !piece) statusSheetOpen = false;
+  const showSheet = statusSheetOpen && Boolean(piece);
 
+  detailBar.hidden = !showSheet;
+  detailBar.classList.toggle("is-open", showSheet);
   emptyDetail.hidden = showSheet;
   unitSheet.hidden = !showSheet;
 
-  if (!piece) return;
+  if (!showSheet) return;
   ensureUnitShape(piece);
 
   sheetType.textContent = typeLabel(piece.type);
@@ -1100,17 +1119,13 @@ function endDrag(event) {
 
   const piece = getUnit(drag.id);
   const targetCell = document.elementFromPoint(event.clientX, event.clientY)?.closest(".cell");
-  const dropTarget = document.elementFromPoint(event.clientX, event.clientY);
-  const droppedOnSide = dropTarget?.closest("#duelBar, #detailBar");
 
   clearHighlights();
   drag.el.classList.remove("dragging");
   drag.el.style.left = "";
   drag.el.style.top = "";
 
-  if (piece && droppedOnSide) {
-    deleteDraggedUnit(piece);
-  } else if (piece && targetCell) {
+  if (piece && targetCell) {
     const x = Number(targetCell.dataset.x);
     const y = Number(targetCell.dataset.y);
     resolveDrop(piece, x, y);
@@ -1678,10 +1693,26 @@ function prepareDuel(attacker, defender) {
   renderDuel();
 }
 
+function closeDuelPanel() {
+  duel = null;
+  renderDuel();
+}
+
 function renderDuel() {
   const attacker = getUnit(duel?.attackerId);
   const defender = getUnit(duel?.defenderId);
   const ready = Boolean(attacker && defender);
+
+  duelBar.hidden = !ready;
+  duelBar.classList.toggle("is-open", ready);
+
+  if (!ready) {
+    duelTitle.textContent = "대기 중";
+    duelUnits.innerHTML = `<p>적 유닛 위로 드래그하면 판정 대결이 준비됩니다.</p>`;
+    duelStats.innerHTML = "";
+    duelResult.innerHTML = `<span>공격자와 방어자의 능력치를 각각 선택하세요.</span>`;
+    return;
+  }
 
   duelTitle.textContent = ready ? "전투 상황" : "대기 중";
   duelUnits.innerHTML = ready
@@ -2294,8 +2325,8 @@ board.addEventListener("contextmenu", (event) => {
 
   event.preventDefault();
   event.stopPropagation();
-  selectUnit(pieceElement.dataset.id);
-  writeLog("선택한 유닛의 상세 능력치를 표시했습니다.", "◆");
+  openUnitStatus(pieceElement.dataset.id);
+  writeLog("선택한 유닛의 임시 상태창을 열었습니다.", "◆");
 });
 
 unitSheet.addEventListener("input", syncSheetToUnit);
@@ -2335,9 +2366,17 @@ closeNameModal.addEventListener("click", closeNameInput);
 cancelNameModal.addEventListener("click", closeNameInput);
 confirmYes.addEventListener("click", acceptConfirm);
 confirmNo.addEventListener("click", closeConfirm);
+closeDuelBar?.addEventListener("click", closeDuelPanel);
+closeDetailBar?.addEventListener("click", closeUnitStatus);
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (!detailBar.hidden) closeUnitStatus();
+  if (!duelBar.hidden) closeDuelPanel();
+});
 
 document.addEventListener("contextmenu", (event) => {
-  if (!event.target.closest(".piece")) event.preventDefault();
+  if (!event.target.closest(".piece") && !event.target.closest("#detailBar")) event.preventDefault();
 });
 
 window.addEventListener("message", handleCoreSyncMessage);

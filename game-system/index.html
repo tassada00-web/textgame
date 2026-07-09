@@ -85,10 +85,11 @@
     </main>
 
     <main id="battleApp" class="app app-view" aria-label="TRPG 전술 보드" hidden>
-      <aside id="duelBar" class="duel-bar" aria-label="주사위 판정 대결">
+      <aside id="duelBar" class="duel-bar" aria-label="주사위 판정 대결" hidden>
         <header>
           <span>판정 대결</span>
           <strong id="duelTitle">대기 중</strong>
+          <button id="closeDuelBar" class="mini-close" type="button" aria-label="닫기">×</button>
         </header>
         <div id="duelUnits" class="duel-units">
           <p>적 유닛 위로 드래그하면 판정 대결이 준비됩니다.</p>
@@ -113,7 +114,8 @@
         </div>
       </section>
 
-      <aside id="detailBar" class="detail-bar" aria-label="유닛 상세 능력치">
+      <aside id="detailBar" class="detail-bar" aria-label="유닛 상세 능력치" hidden>
+        <button id="closeDetailBar" class="sheet-close" type="button" aria-label="닫기">×</button>
         <div class="empty-detail" id="emptyDetail">
           <strong>유닛 선택</strong>
           <p>말을 우클릭하면 상세 능력치가 표시됩니다.</p>
