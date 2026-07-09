@@ -424,8 +424,25 @@ h3 {
 }
 
 .play-panel.uses-game-system {
+  --main-board-bg: #050607;
+  --main-board-frame-bg: #070808;
+  --main-board-line: #f07a00;
   overflow: hidden;
-  background: #050607;
+  background: var(--main-board-bg);
+}
+
+.play-panel.uses-game-system.is-explore-mode {
+  --main-board-bg:
+    linear-gradient(90deg, rgba(240, 122, 0, 0.05), transparent 34%),
+    #050607;
+  --main-board-frame-bg: #070808;
+}
+
+.play-panel.uses-game-system.is-combat-mode {
+  --main-board-bg:
+    radial-gradient(circle at 50% 38%, rgba(240, 122, 0, 0.08), transparent 42%),
+    #050607;
+  --main-board-frame-bg: #050607;
 }
 
 .play-panel.uses-game-system.is-profile-mode {
@@ -477,7 +494,12 @@ h3 {
   display: grid;
   min-height: calc(100vh - 120px);
   padding: 0;
-  background: #050607;
+  background: var(--main-board-bg);
+}
+
+.board-zone-embedded.is-explore-board,
+.board-zone-embedded.is-combat-board {
+  box-shadow: inset 0 0 0 1px rgba(240, 122, 0, 0.18);
 }
 
 .board-zone-embedded.is-status-board {
@@ -485,6 +507,7 @@ h3 {
   gap: 14px;
   padding: 14px;
   background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .board-zone-embedded .board-head {
@@ -500,9 +523,9 @@ h3 {
 
 .embedded-game-frame {
   min-height: calc(100vh - 120px);
-  border: 2px solid #f07a00;
+  border: 2px solid var(--main-board-line);
   border-radius: 8px;
-  background: #050607;
+  background: var(--main-board-frame-bg);
   overflow: hidden;
 }
 
@@ -512,7 +535,7 @@ h3 {
   height: 100%;
   min-height: calc(100vh - 120px);
   border: 0;
-  background: #050607;
+  background: var(--main-board-frame-bg);
 }
 
 .legacy-board-host[hidden] {

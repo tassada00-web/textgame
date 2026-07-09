@@ -743,7 +743,11 @@ function renderBoard() {
   const boardFrame = board.closest(".board-frame");
 
   playPanel?.classList.toggle("is-profile-mode", isProfile);
+  playPanel?.classList.toggle("is-explore-mode", game.mode === "explore");
+  playPanel?.classList.toggle("is-combat-mode", game.mode === "combat");
   boardZone?.classList.toggle("is-status-board", isProfile);
+  boardZone?.classList.toggle("is-explore-board", game.mode === "explore");
+  boardZone?.classList.toggle("is-combat-board", game.mode === "combat");
   if (embeddedFrame) embeddedFrame.hidden = isProfile;
   if (statusMainBoard) statusMainBoard.hidden = !isProfile;
 
