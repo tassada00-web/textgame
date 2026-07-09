@@ -1,5 +1,5 @@
-let cols = 16;
-let rows = 10;
+let cols = 10;
+let rows = 8;
 let activeMode = "exploration";
 
 const explorationApp = document.querySelector("#explorationApp");
@@ -105,9 +105,23 @@ const CORE_SYNC_MESSAGE = "trpg-core:party-state";
 const CORE_COMBAT_START_REQUEST = "trpg-core:request-combat-start";
 const CORE_SYNC_PRIMARY_KEYS = PRIMARY_STATS.map(([key]) => key);
 
-const initialUnits = createExplorationRouteUnits();
+const initialUnits = [
+  unit("player", "P", 1, 5, "플레이어", { hp: 30, maxHp: 30, stamina: 14, maxStamina: 14, attack: 8, defense: 3, move: 4 }),
+  unit("ally", "1", 1, 1, "아군 1", { hp: 18, maxHp: 18, stamina: 12, maxStamina: 12, attack: 5, defense: 1, move: 4 }),
+  unit("ally", "2", 0, 4, "아군 2", { hp: 20, maxHp: 20, stamina: 10, maxStamina: 10, attack: 6, defense: 2, move: 3 }),
+  unit("ally", "3", 1, 7, "아군 3", { hp: 16, maxHp: 16, stamina: 16, maxStamina: 16, attack: 7, defense: 1, move: 5 }),
+  unit("enemy", "1", 2, 6, "적군 1", { hp: 17, maxHp: 17, stamina: 10, maxStamina: 10, attack: 5, defense: 1, move: 3 }),
+  unit("enemy", "2", 3, 1, "적군 2", { hp: 19, maxHp: 19, stamina: 10, maxStamina: 10, attack: 6, defense: 2, move: 3 }),
+  unit("enemy", "3", 4, 0, "적군 3", { hp: 22, maxHp: 22, stamina: 8, maxStamina: 8, attack: 7, defense: 2, move: 2 }),
+  unit("enemy", "4", 4, 3, "적군 4", { hp: 24, maxHp: 24, stamina: 8, maxStamina: 8, attack: 8, defense: 3, move: 2 }),
+  obstacle(1, 0),
+  obstacle(3, 0),
+  obstacle(1, 3),
+  obstacle(3, 4),
+  obstacle(1, 6)
+];
 
-let units = structuredClone(initialUnits);
+let units = [];
 let selectedUnitId = null;
 let drag = null;
 let skillDrag = null;
@@ -192,52 +206,32 @@ function generateExplorationState(preset, forkCount, goalCount) {
   state.cols = preset.cols;
   state.rows = preset.rows;
   state.built = true;
-  state.player = { x: preset.cols > 6 ? 1 : 0, y: clamp(Math.floor(preset.rows * 0.55), 1, Math.max(1, preset.rows - 2)) };
+  state.player = { x: 1, y: Math.floor(preset.rows / 2) };
   state.tiles = Array.from({ length: preset.rows }, () =>
     Array.from({ length: preset.cols }, () => createExplorationTile())
   );
 
-  const opened = [];
+  const paths = [];
   const openCell = (x, y, kind = "normal") => {
     if (!isInsideExplorationBounds(state, x, y)) return false;
     const tile = state.tiles[y][x];
-    if (!tile.open) opened.push({ x, y });
+    if (!tile.open) paths.push({ x, y });
     state.tiles[y][x] = createExplorationTile(kind);
     return true;
   };
 
   openCell(state.player.x, state.player.y, "start");
-  const goalX = state.cols > 6 ? state.cols - 3 : state.cols - 1;
-  const branchX = clamp(state.player.x + 3, state.player.x + 1, Math.max(state.player.x + 1, goalX - 1));
-  const branchBottom = clamp(state.player.y + 3, state.player.y + 1, Math.max(state.player.y + 1, state.rows - 2));
-  const branchEnd = clamp(branchX + 4, branchX + 1, Math.max(branchX + 1, state.cols - 2));
-  const mainKinds = ["fortune", "fortune", "normal", "danger", "normal", "normal", "fortune", "fortune", "normal", "danger", "normal"];
-  const branchKinds = ["normal", "danger", "danger", "normal", "normal", "normal", "normal"];
-
-  for (let x = state.player.x + 1; x < goalX; x += 1) {
-    openCell(x, state.player.y, mainKinds[(x - state.player.x - 1) % mainKinds.length]);
-  }
-  openCell(goalX, state.player.y, "goal");
-
-  if (forkCount > 0) {
-    let branchIndex = 0;
-    for (let y = state.player.y + 1; y <= branchBottom; y += 1) {
-      openCell(branchX, y, branchKinds[branchIndex % branchKinds.length]);
-      branchIndex += 1;
-    }
-    for (let x = branchX + 1; x <= branchEnd; x += 1) {
-      openCell(x, branchBottom, branchKinds[branchIndex % branchKinds.length]);
-      branchIndex += 1;
-    }
+  carveExplorationMainPath(state, paths, openCell, preset.distance);
+  for (let i = 0; i < forkCount; i += 1) {
+    carveExplorationBranch(state, paths, openCell);
   }
 
-  const extraGoals = goalCount > 1
-    ? chooseExplorationGoals(state, goalCount - 1).filter(({ x, y }) => x !== goalX || y !== state.player.y)
-    : [];
-  extraGoals.forEach(({ x, y }) => {
+  const goals = chooseExplorationGoals(state, goalCount);
+  goals.forEach(({ x, y }) => {
     state.tiles[y][x] = createExplorationTile("goal");
   });
-  state.goals = [{ x: goalX, y: state.player.y }, ...extraGoals].slice(0, goalCount);
+  state.goals = goals;
+  paintExplorationEvents(state);
 
   return state;
 }
@@ -662,20 +656,6 @@ function obstacle(x, y) {
   });
 }
 
-function goal(x, y) {
-  return unit("goal", "G", x, y, "도착 지점", {
-    hp: 1,
-    maxHp: 1,
-    stamina: 0,
-    maxStamina: 0,
-    attack: 0,
-    defense: 0,
-    move: 0,
-    primary: { str: 0, con: 0, spd: 0, pre: 0, int: 0, wis: 0, cha: 0 },
-    bonus: { str: 0, con: 0, spd: 0, pre: 0, int: 0, wis: 0, cha: 0 }
-  });
-}
-
 function coreNumber(value, fallback = 0) {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
@@ -883,8 +863,6 @@ function render() {
       cell.className = "cell";
       cell.dataset.x = String(x);
       cell.dataset.y = String(y);
-      if (x === cols - 1) cell.classList.add("edge-right");
-      if (y === rows - 1) cell.classList.add("edge-bottom");
       board.append(cell);
     }
   }
@@ -893,21 +871,8 @@ function render() {
     const cell = getCell(piece.x, piece.y);
     if (!cell) return;
 
-    const directions = getNodeDirections(piece);
-    cell.classList.add("has-node", `node-${piece.type}`);
-    directions.forEach((direction) => {
-      const link = document.createElement("span");
-      link.className = `node-link ${direction}`;
-      cell.append(link);
-    });
-
     const el = document.createElement("button");
-    el.className = [
-      "piece",
-      piece.type,
-      ...directions.map((direction) => `connect-${direction}`),
-      piece.id === selectedUnitId ? "selected" : ""
-    ].filter(Boolean).join(" ");
+    el.className = `piece ${piece.type}${piece.id === selectedUnitId ? " selected" : ""}`;
     el.type = "button";
     el.dataset.id = piece.id;
     el.textContent = piece.label;
@@ -1079,8 +1044,7 @@ function typeLabel(type) {
     player: "플레이어",
     ally: "아군",
     enemy: "적군",
-    obstacle: "장애물",
-    goal: "목표"
+    obstacle: "장애물"
   }[type];
 }
 
@@ -1094,22 +1058,6 @@ function getUnitAt(x, y) {
 
 function getUnit(id) {
   return units.find((piece) => piece.id === id);
-}
-
-function getNodeDirections(piece) {
-  const directions = [
-    ["left", -1, 0],
-    ["right", 1, 0],
-    ["up", 0, -1],
-    ["down", 0, 1]
-  ];
-
-  return directions
-    .filter(([, dx, dy]) => {
-      const neighbor = getUnitAt(piece.x + dx, piece.y + dy);
-      return neighbor && neighbor.id !== piece.id;
-    })
-    .map(([direction]) => direction);
 }
 
 function startDrag(event) {
@@ -1618,7 +1566,7 @@ async function captureBoardImage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `trpg-exploration-board-${getImageTimestamp()}.png`;
+    link.download = `trpg-battle-map-${getImageTimestamp()}.png`;
     document.body.append(link);
     link.click();
     link.remove();
@@ -1626,8 +1574,8 @@ async function captureBoardImage() {
     const copied = await copyImageToClipboard(blob);
     writeLog(
       copied
-        ? "탐험 노드 보드 이미지를 다운로드하고 클립보드에 복사했습니다."
-        : "탐험 노드 보드 이미지를 다운로드했습니다. 클립보드 복사는 브라우저 권한 때문에 실패했습니다.",
+        ? "중앙 전투판 이미지를 다운로드하고 클립보드에 복사했습니다."
+        : "중앙 전투판 이미지를 다운로드했습니다. 클립보드 복사는 브라우저 권한 때문에 실패했습니다.",
       "▣"
     );
   } catch {
@@ -1955,9 +1903,9 @@ function deleteDraggedUnit(piece) {
 function openMapModal() {
   mapInputs.cols.value = String(cols);
   mapInputs.rows.value = String(rows);
-  mapInputs.allies.value = "4";
+  mapInputs.allies.value = "3";
   mapInputs.enemies.value = "4";
-  mapInputs.obstacles.value = "10";
+  mapInputs.obstacles.value = "5";
   renderSaveList();
   mapModal.hidden = false;
 }
@@ -1981,8 +1929,8 @@ function closeEditMap() {
 
 function buildMapFromForm(event) {
   event.preventDefault();
-  const nextCols = clamp(Number(mapInputs.cols.value) || 16, 4, 30);
-  const nextRows = clamp(Number(mapInputs.rows.value) || 10, 4, 30);
+  const nextCols = clamp(Number(mapInputs.cols.value) || 10, 4, 30);
+  const nextRows = clamp(Number(mapInputs.rows.value) || 8, 4, 30);
   const allyCount = clamp(Number(mapInputs.allies.value) || 0, 0, nextCols * nextRows);
   const enemyCount = clamp(Number(mapInputs.enemies.value) || 0, 0, nextCols * nextRows);
   const obstacleCount = clamp(Number(mapInputs.obstacles.value) || 0, 0, nextCols * nextRows);
@@ -1994,15 +1942,15 @@ function buildMapFromForm(event) {
   duel = null;
   activeSkill = null;
   closeMapResetModal();
-  writeLog(`탐험 노드 보드 [${cols} x ${rows}] 생성 완료.`, "↻");
+  writeLog(`배틀맵 [${cols} x ${rows}] 생성 완료.`, "↻");
   render();
   renderSheet();
   renderDuel();
 }
 
 function readMapFormValues() {
-  const nextCols = clamp(Number(editMapInputs.cols.value) || 16, 4, 30);
-  const nextRows = clamp(Number(editMapInputs.rows.value) || 10, 4, 30);
+  const nextCols = clamp(Number(editMapInputs.cols.value) || 10, 4, 30);
+  const nextRows = clamp(Number(editMapInputs.rows.value) || 8, 4, 30);
   const maxCells = nextCols * nextRows;
 
   return {
@@ -2288,91 +2236,45 @@ function acceptConfirm() {
 }
 
 function generateMapUnits(allyCount, enemyCount, obstacleCount) {
-  return createExplorationRouteUnits(allyCount, enemyCount, obstacleCount);
-}
-
-function createExplorationRouteUnits(allyCount = 4, enemyCount = 4, obstacleCount = 10) {
-  const route = buildExplorationRoutePlan();
-  const remaining = {
-    ally: Math.max(0, allyCount),
-    enemy: Math.max(0, enemyCount),
-    obstacle: Math.max(0, obstacleCount)
+  const generated = [];
+  const occupied = new Set();
+  const put = (piece) => {
+    occupied.add(`${piece.x},${piece.y}`);
+    generated.push(piece);
+  };
+  const nextEmpty = (preferRight = false) => {
+    const xRange = [...Array(cols).keys()];
+    const yRange = [...Array(rows).keys()];
+    if (preferRight) xRange.reverse();
+    for (const x of xRange) {
+      for (const y of yRange) {
+        if (!occupied.has(`${x},${y}`)) return { x, y };
+      }
+    }
+    return null;
   };
 
-  let nodeIndex = 1;
-  return route.map((point) => {
-    if (point.role === "start") return unit("player", "", point.x, point.y, "시작 지점", { hp: 30, maxHp: 30, stamina: 14, maxStamina: 14, attack: 0, defense: 0, move: 4 });
-    if (point.role === "goal") return goal(point.x, point.y);
+  put(unit("player", "P", 0, Math.floor(rows / 2), "플레이어", { hp: 30, maxHp: 30, stamina: 14, maxStamina: 14, attack: 8, defense: 3, move: 4 }));
 
-    const type = pickExplorationNodeType(point.preferred, remaining);
-    const piece = makeExplorationNode(type, point.x, point.y, nodeIndex);
-    nodeIndex += 1;
-    return piece;
-  });
-}
-
-function buildExplorationRoutePlan() {
-  const midY = clamp(Math.floor(rows * 0.55), 1, Math.max(1, rows - 2));
-  const startX = cols > 6 ? 1 : 0;
-  const goalX = cols > 6 ? cols - 3 : cols - 1;
-  const branchX = clamp(startX + 3, startX + 1, Math.max(startX + 1, goalX - 1));
-  const branchBottom = clamp(midY + 3, midY + 1, Math.max(midY + 1, rows - 1));
-  const branchEnd = clamp(branchX + 4, branchX + 1, Math.max(branchX + 1, cols - 2));
-  const mainTypes = ["ally", "ally", "obstacle", "enemy", "obstacle", "obstacle", "ally", "ally", "obstacle", "enemy", "obstacle"];
-  const branchTypes = ["obstacle", "enemy", "enemy", "obstacle", "obstacle", "obstacle", "obstacle"];
-  const points = [];
-  const used = new Set();
-  const addPoint = (x, y, options = {}) => {
-    if (x < 0 || y < 0 || x >= cols || y >= rows) return;
-    const key = `${x},${y}`;
-    if (used.has(key)) return;
-    used.add(key);
-    points.push({ x, y, ...options });
-  };
-
-  addPoint(startX, midY, { role: "start" });
-  for (let x = startX + 1; x < goalX; x += 1) {
-    addPoint(x, midY, { preferred: mainTypes[(x - startX - 1) % mainTypes.length] });
-  }
-  addPoint(goalX, midY, { role: "goal" });
-
-  let branchIndex = 0;
-  for (let y = midY + 1; y <= branchBottom; y += 1) {
-    addPoint(branchX, y, { preferred: branchTypes[branchIndex % branchTypes.length] });
-    branchIndex += 1;
-  }
-  for (let x = branchX + 1; x <= branchEnd; x += 1) {
-    addPoint(x, branchBottom, { preferred: branchTypes[branchIndex % branchTypes.length] });
-    branchIndex += 1;
+  for (let i = 1; i <= allyCount; i += 1) {
+    const spot = nextEmpty(false);
+    if (!spot) break;
+    put(unit("ally", String(i), spot.x, spot.y, `아군 ${i}`, { hp: 18, maxHp: 18, stamina: 12, maxStamina: 12, attack: 5, defense: 1, move: 4 }));
   }
 
-  return points;
-}
-
-function pickExplorationNodeType(preferred, remaining) {
-  if (remaining[preferred] > 0) {
-    remaining[preferred] -= 1;
-    return preferred;
+  for (let i = 1; i <= enemyCount; i += 1) {
+    const spot = nextEmpty(true);
+    if (!spot) break;
+    put(unit("enemy", String(i), spot.x, spot.y, `적군 ${i}`, { hp: 20, maxHp: 20, stamina: 10, maxStamina: 10, attack: 6, defense: 2, move: 3 }));
   }
 
-  const fallback = ["obstacle", "ally", "enemy"].find((type) => remaining[type] > 0);
-  if (!fallback) return preferred || "obstacle";
+  for (let i = 0; i < obstacleCount; i += 1) {
+    const spot = nextEmpty(i % 2 === 0);
+    if (!spot) break;
+    put(obstacle(spot.x, spot.y));
+  }
 
-  remaining[fallback] -= 1;
-  return fallback;
-}
-
-function makeExplorationNode(type, x, y, index) {
-  const names = {
-    ally: "안전 경로",
-    enemy: "위험 경로",
-    obstacle: "미확인 경로"
-  };
-  const stats = type === "obstacle"
-    ? { hp: 999, maxHp: 999, stamina: 0, maxStamina: 0, attack: 0, defense: 999, move: 0 }
-    : { hp: 20, maxHp: 20, stamina: 10, maxStamina: 10, attack: type === "enemy" ? 6 : 0, defense: 1, move: 0 };
-
-  return unit(type, "", x, y, `${names[type] ?? "경로"} ${index}`, stats);
+  return generated;
 }
 
 createExploration.addEventListener("click", buildExplorationFromControls);

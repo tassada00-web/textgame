@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>TRPG 탐험 노드 보드</title>
+    <title>TRPG 전술 보드</title>
     <link rel="stylesheet" href="style.css">
   </head>
   <body>
@@ -20,19 +20,19 @@
             <label>
               규모
               <select id="explorationSize">
-                <option value="tiny" selected>더 작게</option>
+                <option value="tiny">더 작게</option>
                 <option value="small">작게</option>
                 <option value="medium">보통</option>
-                <option value="large">넓게</option>
+                <option value="large" selected>넓게</option>
               </select>
             </label>
             <label>
               갈림길
-              <input id="explorationForks" type="number" min="1" max="30" value="1">
+              <input id="explorationForks" type="number" min="1" max="30" value="8">
             </label>
             <label>
               목표
-              <input id="explorationGoals" type="number" min="1" max="10" value="1">
+              <input id="explorationGoals" type="number" min="1" max="10" value="3">
             </label>
           </div>
           <button id="createExploration" type="button">탐험판 생성</button>
@@ -191,7 +191,7 @@
 
         <div class="log" aria-live="polite">
           <span id="logIcon">⚔</span>
-          <p id="battleLog">탐험 노드 보드 [16 x 10] 생성 완료. 노드는 드래그로 이동하고, 우클릭으로 상세 능력치를 봅니다.</p>
+          <p id="battleLog">배틀맵 [10 x 8] 생성 완료. 유닛은 드래그로 이동하고, 우클릭으로 상세 능력치를 봅니다.</p>
         </div>
       </section>
     </main>
@@ -205,15 +205,15 @@
         <div class="map-form-grid">
           <label>
             가로 값
-            <input id="mapCols" type="number" min="4" max="30" value="16">
+            <input id="mapCols" type="number" min="4" max="30" value="10">
           </label>
           <label>
             세로 값
-            <input id="mapRows" type="number" min="4" max="30" value="10">
+            <input id="mapRows" type="number" min="4" max="30" value="8">
           </label>
           <label>
             아군 말 갯수
-            <input id="mapAllies" type="number" min="0" max="99" value="4">
+            <input id="mapAllies" type="number" min="0" max="99" value="3">
           </label>
           <label>
             적군 말 갯수
@@ -221,7 +221,7 @@
           </label>
           <label>
             장애물 값
-            <input id="mapObstacles" type="number" min="0" max="99" value="10">
+            <input id="mapObstacles" type="number" min="0" max="99" value="5">
           </label>
         </div>
         <p>플레이어 말판은 항상 1개 생성됩니다.</p>

@@ -423,25 +423,23 @@ button:hover {
 
 .board-frame {
   border: 3px solid #2a2a2a;
-  background: #090909;
-  padding: 7px;
+  background: #141414;
+  padding: 6px;
   box-shadow: 0 0 26px rgba(0, 0, 0, 0.62);
 }
 
 .board {
-  --cols: 16;
-  --rows: 10;
+  --cols: 10;
+  --rows: 8;
   --cell: min(
     calc((100vw - 1040px) / var(--cols)),
-    calc((100vh - 230px) / var(--rows)),
-    48px
+    calc((100vh - 210px) / var(--rows)),
+    58px
   );
-  --node-color: #344454;
-  --node-thickness: clamp(8px, calc(var(--cell) * 0.23), 13px);
   display: grid;
   grid-template-columns: repeat(var(--cols), var(--cell));
   grid-template-rows: repeat(var(--rows), var(--cell));
-  background: #050606;
+  background: #1d1d2d;
   user-select: none;
   touch-action: none;
 }
@@ -450,15 +448,15 @@ button:hover {
   position: relative;
   width: var(--cell);
   height: var(--cell);
-  border-right: 1px solid #131415;
-  border-bottom: 1px solid #131415;
+  border-right: 1px solid var(--grid);
+  border-bottom: 1px solid var(--grid);
 }
 
-.cell.edge-right {
+.cell:nth-child(10n) {
   border-right: 0;
 }
 
-.cell.edge-bottom {
+.cell:nth-last-child(-n + 10) {
   border-bottom: 0;
 }
 
@@ -470,98 +468,30 @@ button:hover {
   background: rgba(240, 68, 56, 0.28);
 }
 
-.cell.has-node {
-  --node-color: #344454;
-}
-
-.cell.node-player {
-  --node-color: #ffca3c;
-}
-
-.cell.node-ally {
-  --node-color: #2e93d2;
-}
-
-.cell.node-enemy {
-  --node-color: #c54c43;
-}
-
-.cell.node-obstacle {
-  --node-color: #303d49;
-}
-
-.cell.node-goal {
-  --node-color: #28c77a;
-}
-
-.node-link {
-  position: absolute;
-  z-index: 1;
-  display: block;
-  background: var(--node-color);
-  border-radius: 999px;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--node-color) 42%, transparent);
-  pointer-events: none;
-}
-
-.node-link.left,
-.node-link.right {
-  top: 50%;
-  height: var(--node-thickness);
-  transform: translateY(-50%);
-}
-
-.node-link.left {
-  left: -1px;
-  width: calc(50% + 2px);
-}
-
-.node-link.right {
-  right: -1px;
-  width: calc(50% + 2px);
-}
-
-.node-link.up,
-.node-link.down {
-  left: 50%;
-  width: var(--node-thickness);
-  transform: translateX(-50%);
-}
-
-.node-link.up {
-  top: -1px;
-  height: calc(50% + 2px);
-}
-
-.node-link.down {
-  bottom: -1px;
-  height: calc(50% + 2px);
-}
-
 .piece {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: calc(var(--cell) * 0.34);
-  height: var(--node-thickness);
-  min-width: 10px;
-  min-height: 8px;
-  border: 0;
-  border-radius: 999px;
-  padding: 0;
-  appearance: none;
+  width: calc(var(--cell) * 0.72);
+  height: calc(var(--cell) * 0.72);
+  border: 2px solid rgba(0, 0, 0, 0.78);
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  color: transparent;
-  font-size: 0;
+  color: #fff;
+  font-size: clamp(12px, calc(var(--cell) * 0.24), 18px);
   font-weight: 900;
   line-height: 1;
-  text-shadow: none;
+  text-shadow:
+    -1px -1px 0 #050505,
+    1px -1px 0 #050505,
+    -1px 1px 0 #050505,
+    1px 1px 0 #050505,
+    0 0 7px rgba(0, 0, 0, 0.95);
   transform: translate(-50%, -50%);
   cursor: grab;
   z-index: 3;
-  background: var(--node-color);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--node-color) 45%, transparent);
+  box-shadow: 0 0 18px currentColor, inset 0 -8px 12px rgba(0, 0, 0, 0.26);
 }
 
 .piece.selected {
@@ -574,62 +504,25 @@ button:hover {
 }
 
 .piece.player {
-  width: calc(var(--cell) * 0.54);
-  height: calc(var(--cell) * 0.54);
-  border: 2px solid #f1b51c;
-  border-radius: 50%;
-  background: radial-gradient(circle at 57% 43%, #fff 0 34%, #ffd44b 36% 69%, #a16d00 72% 100%);
-  color: transparent;
-  box-shadow: 0 0 14px rgba(255, 207, 67, 0.36), 0 0 0 3px rgba(255, 198, 40, 0.1);
+  background: radial-gradient(circle at 35% 28%, #8fffb3, #26b65e 65%, #0c6b35);
+  color: #fff;
 }
 
 .piece.ally {
-  background: var(--node-color);
+  background: radial-gradient(circle at 35% 28%, #a9ddff, #2d8fd0 65%, #105982);
+  color: #fff;
 }
 
 .piece.enemy {
-  background: var(--node-color);
+  background: radial-gradient(circle at 35% 28%, #ff9b8d, #dc352b 65%, #7b1510);
+  color: #fff;
 }
 
 .piece.obstacle {
-  border-radius: 999px;
-  background: var(--node-color);
-  color: transparent;
-  box-shadow: 0 0 8px rgba(52, 66, 80, 0.42);
-}
-
-.piece.goal {
-  width: calc(var(--cell) * 0.26);
-  height: calc(var(--cell) * 0.26);
-  min-width: 12px;
-  min-height: 12px;
-  border-radius: 50%;
-  background: var(--node-color);
-  color: #ecfff6;
-  font-size: clamp(8px, calc(var(--cell) * 0.17), 12px);
-  text-shadow: none;
-  box-shadow: 0 0 10px rgba(40, 199, 122, 0.44);
-}
-
-.piece.connect-left.connect-right:not(.connect-up):not(.connect-down) {
-  width: calc(var(--cell) * 0.52);
-}
-
-.piece.connect-up.connect-down:not(.connect-left):not(.connect-right) {
-  width: var(--node-thickness);
-  height: calc(var(--cell) * 0.52);
-}
-
-.piece.connect-left.connect-down:not(.connect-right):not(.connect-up),
-.piece.connect-left.connect-up:not(.connect-right):not(.connect-down),
-.piece.connect-right.connect-down:not(.connect-left):not(.connect-up),
-.piece.connect-right.connect-up:not(.connect-left):not(.connect-down),
-.piece.connect-left.connect-right.connect-down,
-.piece.connect-left.connect-right.connect-up,
-.piece.connect-up.connect-down.connect-left,
-.piece.connect-up.connect-down.connect-right {
-  width: var(--node-thickness);
-  height: var(--node-thickness);
+  border-radius: 8px;
+  background: #0a0a0a;
+  color: var(--enemy);
+  box-shadow: inset 0 0 0 2px var(--enemy), 0 0 12px rgba(240, 68, 56, 0.44);
 }
 
 .piece.dragging {
