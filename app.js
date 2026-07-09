@@ -249,6 +249,7 @@ let selectedCombatantId = null;
 let selectedTargetId = null;
 let attackStat = "precision";
 let defendStat = "speed";
+let activePartyPreviewIndex = 0;
 let pendingConfirmAction = null;
 
 function createNewGame() {
@@ -297,6 +298,18 @@ function loadGame() {
   try {
     const parsed = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
     if (!parsed?.characters) return null;
+    parsed.exploration ??= {
+      cols: 10,
+      rows: 8,
+      partyX: 1,
+      partyY: 4,
+      obstacles: ["4,1", "6,2", "2,6", "7,5", "5,4"],
+    };
+    parsed.exploration.cols ??= 10;
+    parsed.exploration.rows ??= 8;
+    parsed.exploration.partyX ??= 1;
+    parsed.exploration.partyY ??= 4;
+    parsed.exploration.obstacles ??= ["4,1", "6,2", "2,6", "7,5", "5,4"];
     BASE_CHARACTERS.forEach((base) => {
       if (!parsed.characters[base.id]) {
         const clone = cloneData(base);
@@ -304,6 +317,7 @@ function loadGame() {
         clone.partySlots = [null, null, null];
         parsed.characters[base.id] = clone;
       }
+      parsed.characters[base.id].partySlots ??= [null, null, null];
     });
     return parsed;
   } catch {
@@ -494,7 +508,7 @@ function renderPartySlot(member, index) {
 
   const stats = getCombatStats(member);
   return `
-    <article class="party-slot ${member.active === false ? "slot-off" : ""}">
+    <article class="party-slot ${member.active === false ? "slot-off" : ""} ${activePartyPreviewIndex === index ? "is-previewed" : ""}">
       <div class="slot-top">
         <div class="slot-name">
           <span class="tiny-label">Slot ${index + 1}</span>
@@ -503,6 +517,7 @@ function renderPartySlot(member, index) {
         </div>
       </div>
       <div class="slot-actions">
+        <button class="mini-button" type="button" data-party-preview="${index}">미니 상태창</button>
         <button class="mini-button" type="button" data-party-active="${index}">${member.active === false ? "전투 참가" : "전투 제외"}</button>
         <label class="file-label">
           교체
@@ -535,33 +550,42 @@ function renderMode() {
 function renderBoard() {
   const board = document.getElementById("board");
   const { cols, rows } = game.exploration;
+  const inCombat = game.mode === "combat" && game.combat;
+  const boardFrame = board.closest(".board-frame");
   board.style.setProperty("--cols", cols);
   board.style.setProperty("--rows", rows);
+  board.style.gridTemplateColumns = `repeat(${cols}, var(--cell))`;
+  board.style.gridTemplateRows = `repeat(${rows}, var(--cell))`;
+  board.className = `board ${inCombat ? "battle-board" : "exploration-board"}`;
+  boardFrame?.classList.toggle("combat-frame", inCombat);
+  boardFrame?.classList.toggle("explore-frame", !inCombat);
   board.innerHTML = "";
 
-  document.getElementById("boardKicker").textContent = game.mode === "combat" ? "Combat" : "Explore";
-  document.getElementById("boardTitle").textContent = game.mode === "combat" ? "속도 순서 전투 보드" : "파티 탐험 보드";
-  document.getElementById("boardMeta").textContent = game.mode === "combat"
-    ? `Round ${game.combat?.round || 1}`
-    : `파티 위치 (${game.exploration.partyX + 1}, ${game.exploration.partyY + 1})`;
+  document.getElementById("boardKicker").textContent = inCombat ? "Battle Map" : "Explore Map";
+  document.getElementById("boardTitle").textContent = inCombat ? "전술 배틀맵" : "파티 탐험맵";
+  document.getElementById("boardMeta").innerHTML = inCombat
+    ? `<span>Round ${game.combat?.round || 1}</span><span>${cols} x ${rows}</span>`
+    : `<span>Party (${game.exploration.partyX + 1}, ${game.exploration.partyY + 1})</span><span>${cols} x ${rows}</span>`;
 
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < cols; x += 1) {
-      const cell = document.createElement("button");
-      cell.type = "button";
+      const cell = document.createElement("div");
       cell.className = "cell";
       cell.dataset.x = String(x);
       cell.dataset.y = String(y);
-      if (isObstacle(x, y)) cell.classList.add("obstacle");
+      if (isObstacle(x, y)) cell.classList.add("terrain-blocked");
       board.append(cell);
     }
   }
 
-  if (game.mode === "combat" && game.combat) {
+  renderObstaclePieces();
+
+  if (inCombat) {
     renderCombatBoardPieces();
   } else {
     renderExploreBoardPiece();
   }
+  renderBoardStatusPanel();
 }
 
 function isObstacle(x, y) {
@@ -572,15 +596,26 @@ function getCell(x, y) {
   return document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
 }
 
+function renderObstaclePieces() {
+  game.exploration.obstacles.forEach((value) => {
+    const [x, y] = value.split(",").map(Number);
+    const cell = getCell(x, y);
+    if (!cell) return;
+    cell.insertAdjacentHTML("beforeend", `<span class="piece obstacle" title="장애물">×</span>`);
+  });
+}
+
 function renderExploreBoardPiece() {
   const { partyX, partyY } = game.exploration;
   const cell = getCell(partyX, partyY);
   if (cell) {
-    cell.insertAdjacentHTML("beforeend", `<span class="piece party">P</span>`);
+    const activeMembers = getActiveCharacter().partySlots.filter((member) => member && member.active !== false).length;
+    cell.insertAdjacentHTML("beforeend", `<span class="piece player" title="파티 전체 이동 말">P</span>`);
+    if (activeMembers) cell.insertAdjacentHTML("beforeend", `<span class="party-count" title="참가 파티원">${activeMembers}</span>`);
   }
   getAdjacentCells(partyX, partyY)
     .filter(({ x, y }) => !isObstacle(x, y))
-    .forEach(({ x, y }) => getCell(x, y)?.classList.add("reachable"));
+    .forEach(({ x, y }) => getCell(x, y)?.classList.add("target"));
 }
 
 function renderCombatBoardPieces() {
@@ -588,26 +623,82 @@ function renderCombatBoardPieces() {
   game.combat.combatants.forEach((combatant) => {
     const cell = getCell(combatant.x, combatant.y);
     if (!cell) return;
-    const label = combatant.side === "enemy" ? "E" : combatant.source === "main" ? "M" : "A";
+    const label = getCombatantLabel(combatant);
     const classes = [
       "piece",
-      combatant.side === "enemy" ? "enemy" : combatant.source === "main" ? "main" : "ally",
+      combatant.side === "enemy" ? "enemy" : combatant.source === "main" ? "player" : "ally",
       combatant.id === selectedCombatantId ? "selected" : "",
       combatant.hp <= 0 ? "defeated" : "",
     ].filter(Boolean).join(" ");
     cell.insertAdjacentHTML("beforeend", `
-      <button class="${classes}" type="button" data-combatant="${combatant.id}" title="${escapeHtml(combatant.name)}">${label}</button>
+      <button class="${classes}" type="button" data-combatant="${combatant.id}" title="${escapeHtml(combatant.name)} | HP ${combatant.hp}/${combatant.maxHp}">${escapeHtml(label)}</button>
     `);
   });
 
   if (current) {
     getAdjacentCells(current.x, current.y)
       .filter(({ x, y }) => !isObstacle(x, y) && !getCombatantAt(x, y))
-      .forEach(({ x, y }) => getCell(x, y)?.classList.add("reachable"));
+      .forEach(({ x, y }) => getCell(x, y)?.classList.add("target"));
   }
   game.combat.combatants
     .filter((combatant) => combatant.side !== current?.side && combatant.hp > 0)
-    .forEach((combatant) => getCell(combatant.x, combatant.y)?.classList.add("targetable"));
+    .forEach((combatant) => getCell(combatant.x, combatant.y)?.classList.add("attack-target"));
+}
+
+function getCombatantLabel(combatant) {
+  if (combatant.label) return combatant.label;
+  if (combatant.side === "enemy") {
+    const enemies = game.combat?.combatants.filter((unit) => unit.side === "enemy") || [];
+    return String(enemies.findIndex((unit) => unit.id === combatant.id) + 1 || "E");
+  }
+  if (combatant.source === "main") return "P";
+  if (Number.isInteger(combatant.partySlotIndex)) return String(combatant.partySlotIndex + 1);
+  return "A";
+}
+
+function renderBoardStatusPanel() {
+  const panel = document.getElementById("boardStatusPanel");
+  if (!panel) return;
+  const current = getCurrentActor();
+  const selected = getCombatant(selectedCombatantId) || current;
+  const character = getActiveCharacter();
+  const activeMembers = character.partySlots.filter((member) => member && member.active !== false);
+  const legend = `
+    <div class="legend" aria-label="말 종류">
+      <span><i class="dot player"></i>플레이어/파티</span>
+      <span><i class="dot ally"></i>아군</span>
+      <span><i class="dot enemy"></i>적군</span>
+      <span><i class="box obstacle"></i>장애물</span>
+    </div>
+  `;
+
+  if (!game.combat) {
+    panel.innerHTML = `
+      ${legend}
+      <article class="board-info-card">
+        <span class="tiny-label">탐험 말</span>
+        <strong>${escapeHtml(character.name)} 파티</strong>
+        <p>참가 파티원 ${activeMembers.length}/3 · 장애물 ${game.exploration.obstacles.length}개</p>
+      </article>
+      <div class="board-log"><span>◆</span><p>인접 칸을 선택하면 파티 전체가 이동합니다.</p></div>
+    `;
+    return;
+  }
+
+  panel.innerHTML = `
+    ${legend}
+    <article class="board-info-card">
+      <span class="tiny-label">현재 턴</span>
+      <strong>${escapeHtml(current?.name || "대기")}</strong>
+      <p>${current ? `HP ${current.hp}/${current.maxHp} · SP ${current.stamina}/${current.maxStamina} · 속도 ${current.stats.speed}` : "전투원이 없습니다."}</p>
+    </article>
+    <article class="board-info-card">
+      <span class="tiny-label">선택 말</span>
+      <strong>${escapeHtml(selected?.name || "선택 없음")}</strong>
+      <p>${selected ? `${selected.side === "enemy" ? "적군" : "아군"} · ${getCombatantLabel(selected)} · 데미지 ${selected.stats.damage || 0} · 방어 ${selected.stats.armor || 0}` : "말을 선택하세요."}</p>
+    </article>
+    <div class="board-log"><span>⚔</span><p>주황 칸은 이동 가능, 붉은 칸은 공격 대상입니다.</p></div>
+  `;
 }
 
 function getAdjacentCells(x, y) {
@@ -647,10 +738,10 @@ function startCombat() {
   }));
 
   const party = [
-    makeCombatantFromEntity(character, "party", { source: "main", characterId: character.id, x: placements[0].x, y: placements[0].y }),
+    makeCombatantFromEntity(character, "party", { source: "main", characterId: character.id, label: "P", x: placements[0].x, y: placements[0].y }),
     ...character.partySlots
       .map((member, index) => member && member.active !== false
-        ? makeCombatantFromEntity(member, "party", { source: "party", partySlotIndex: index, x: placements[index + 1]?.x ?? partyX, y: placements[index + 1]?.y ?? partyY })
+        ? makeCombatantFromEntity(member, "party", { source: "party", partySlotIndex: index, label: String(index + 1), x: placements[index + 1]?.x ?? partyX, y: placements[index + 1]?.y ?? partyY })
         : null)
       .filter(Boolean),
   ];
@@ -684,6 +775,7 @@ function makeCombatantFromEntity(entity, side, options) {
     source: options.source,
     characterId: options.characterId ?? null,
     partySlotIndex: options.partySlotIndex ?? null,
+    label: options.label ?? null,
     name: entity.name,
     x: options.x,
     y: options.y,
@@ -717,7 +809,7 @@ function makeEnemy(name, x, y, index) {
     state: createState(),
     skills: [{ name: "난폭한 공격", body: "힘으로 공격합니다.", tags: ["공격"], stat: "strength" }],
   };
-  return makeCombatantFromEntity(entity, "enemy", { source: "sample", x, y });
+  return makeCombatantFromEntity(entity, "enemy", { source: "sample", label: String(index), x, y });
 }
 
 function rebuildInitiative(reason = "속도 재계산") {
@@ -946,12 +1038,112 @@ function normalizeBag(bag = {}) {
 }
 
 function renderPartySheet(character) {
+  character.partySlots ??= [null, null, null];
+  const firstFilledIndex = character.partySlots.findIndex(Boolean);
+  if (!character.partySlots[activePartyPreviewIndex] && firstFilledIndex >= 0) activePartyPreviewIndex = firstFilledIndex;
+  const selectedMember = character.partySlots[activePartyPreviewIndex] || null;
   return `
     <section class="detail-card">
       <h2>${escapeHtml(character.name)}의 파티 슬롯</h2>
       <p class="skill-body">탐험 중에는 파티가 한 묶음으로 움직이고, 전투 시작 시 참가 중인 슬롯이 개별 유닛으로 펼쳐집니다.</p>
     </section>
-    ${character.partySlots.map((member, index) => renderPartySlot(member, index)).join("")}
+    <section class="party-mini-layout">
+      <div class="party-mini-nav">
+        ${character.partySlots.map((member, index) => `
+          <button class="party-mini-tab ${activePartyPreviewIndex === index ? "is-active" : ""}" type="button" data-party-preview="${index}">
+            <span>Slot ${index + 1}</span>
+            <strong>${escapeHtml(member?.name || "비어 있음")}</strong>
+          </button>
+        `).join("")}
+      </div>
+      ${renderPartyMiniPage(selectedMember, activePartyPreviewIndex)}
+    </section>
+    <section class="party-sheet-slots">
+      ${character.partySlots.map((member, index) => renderPartySlot(member, index)).join("")}
+    </section>
+  `;
+}
+
+function renderPartyMiniPage(member, index) {
+  if (!member) {
+    return `
+      <article class="party-mini-page is-empty">
+        <span class="tiny-label">Slot ${index + 1}</span>
+        <h2>등록된 파티원이 없습니다</h2>
+        <p class="skill-body">엑셀 파일을 가져오면 이 영역에 체력, 스테미나, 주능력치, 전투 능력치, 스킬이 미니 상태창으로 출력됩니다.</p>
+        <label class="file-label">
+          엑셀 가져오기
+          <input type="file" accept=".xlsx,.xls" data-party-import="${index}" />
+        </label>
+      </article>
+    `;
+  }
+
+  const stats = getCombatStats(member);
+  return `
+    <article class="party-mini-page">
+      <div class="mini-page-head">
+        <div>
+          <span class="tiny-label">Slot ${index + 1} · ${member.active === false ? "전투 제외" : "전투 참가"}</span>
+          <h2>${escapeHtml(member.name)}</h2>
+          <p>${escapeHtml(member.tendency || member.role || "파티원")}</p>
+        </div>
+        <div class="mini-page-actions">
+          <button class="mini-button" type="button" data-party-active="${index}">${member.active === false ? "전투 참가" : "전투 제외"}</button>
+          <label class="file-label">
+            교체
+            <input type="file" accept=".xlsx,.xls" data-party-import="${index}" />
+          </label>
+        </div>
+      </div>
+      <section class="mini-metrics">
+        <article><span>HP</span><strong>${stats.hp}/${stats.maxHp}</strong></article>
+        <article><span>SP</span><strong>${stats.stamina}/${stats.maxStamina}</strong></article>
+        <article><span>속도</span><strong>${stats.speed}</strong></article>
+        <article><span>데미지</span><strong>${stats.damage || 0}</strong></article>
+        <article><span>방어</span><strong>${stats.armor || 0}</strong></article>
+      </section>
+      ${renderEntityStatTable(member)}
+      <section class="mini-skill-list">
+        <div class="card-head">
+          <h3>스킬</h3>
+          <span class="small-muted">${member.skills?.length || 0}</span>
+        </div>
+        ${(member.skills || []).length ? member.skills.map((skill) => `
+          <article class="mini-skill-card">
+            <strong>${escapeHtml(skill.name)}</strong>
+            <span>${escapeHtml(STAT_LABELS[skill.stat] || "판정")}</span>
+            ${skill.body ? `<p>${escapeHtml(skill.body)}</p>` : ""}
+          </article>
+        `).join("") : `<p class="small-muted">가져온 스킬이 없습니다.</p>`}
+      </section>
+    </article>
+  `;
+}
+
+function renderEntityStatTable(entity) {
+  const gearBonuses = sumStats(entity.equipment);
+  return `
+    <section class="stat-table mini-stat-table">
+      <div class="stat-row is-head">
+        <span>능력치</span><span class="number">기본</span><span class="number">장비</span><span class="number">상태</span><span class="number">결과</span>
+      </div>
+      ${STAT_DEFS.map((stat) => {
+        const base = entity.baseLabels?.[stat.key] || entity.bases?.[stat.key] || 0;
+        const gear = gearBonuses[stat.key] || 0;
+        const modifier = getStatState(entity, stat.key);
+        const stateValue = Number(modifier.increase || 0) - Number(modifier.decrease || 0);
+        return `
+          <div class="stat-row">
+            <span class="stat-name">${stat.label}</span>
+            <span class="number">${base}</span>
+            <span class="number">${formatSigned(gear)}</span>
+            <span class="number">${formatSigned(stateValue)}</span>
+            <span class="number">${getTotal(entity, stat.key)}</span>
+          </div>
+        `;
+      }).join("")}
+    </section>
   `;
 }
 
@@ -1143,7 +1335,8 @@ function selectCombatant(id) {
 function addImportedCombatant(entity, side) {
   if (!game.combat) return;
   const spot = findCombatSpawn(side);
-  const combatant = makeCombatantFromEntity(entity, side, { source: "excel", x: spot.x, y: spot.y });
+  const sideCount = game.combat.combatants.filter((combatant) => combatant.side === side).length + 1;
+  const combatant = makeCombatantFromEntity(entity, side, { source: "excel", label: side === "enemy" ? String(sideCount) : `A${sideCount}`, x: spot.x, y: spot.y });
   game.combat.combatants.push(combatant);
   rebuildInitiative(`${entity.name} 전투 참가`);
   addLog(`${entity.name}을 ${side === "enemy" ? "적군" : "아군"} 전투원으로 추가했습니다.`);
@@ -1168,6 +1361,8 @@ async function importPartyMember(file, index) {
   if (!parsed) return;
   const member = buildEntityFromImport(parsed, { role: "파티원" });
   getActiveCharacter().partySlots[index] = member;
+  activePartyPreviewIndex = index;
+  activeTab = "party";
   addLog(`${member.name}을 파티 슬롯 ${index + 1}에 등록했습니다.`);
   saveGame(true);
   renderAll();
@@ -1436,6 +1631,14 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const partyPreview = event.target.closest("[data-party-preview]");
+  if (partyPreview) {
+    activePartyPreviewIndex = Number(partyPreview.dataset.partyPreview);
+    activeTab = "party";
+    renderAll();
+    return;
+  }
+
   const partyActive = event.target.closest("[data-party-active]");
   if (partyActive) {
     const index = Number(partyActive.dataset.partyActive);
@@ -1450,6 +1653,7 @@ document.addEventListener("click", (event) => {
   if (partyClear) {
     const index = Number(partyClear.dataset.partyClear);
     getActiveCharacter().partySlots[index] = null;
+    if (activePartyPreviewIndex === index) activePartyPreviewIndex = 0;
     addLog(`파티 슬롯 ${index + 1}을 비웠습니다.`);
     saveGame(true);
     renderAll();
