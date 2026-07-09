@@ -1097,6 +1097,8 @@ function normalizeTemporaryUnitStatus(payload = {}) {
   const primary = payload.primary && typeof payload.primary === "object" ? payload.primary : {};
   const bonus = payload.bonus && typeof payload.bonus === "object" ? payload.bonus : {};
   const skills = Array.isArray(payload.skills) ? payload.skills : [];
+  const core = payload.core && typeof payload.core === "object" ? payload.core : null;
+  const partySlotIndex = Number(core?.partySlotIndex);
   const numberValue = (value, fallback = 0) => {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -1115,6 +1117,13 @@ function normalizeTemporaryUnitStatus(payload = {}) {
     armor: numberValue(payload.armor),
     primary: Object.fromEntries(Object.keys(SHORT_TO_FULL).map((key) => [key, numberValue(primary[key])])),
     bonus: Object.fromEntries(Object.keys(SHORT_TO_FULL).map((key) => [key, numberValue(bonus[key])])),
+    core: core
+      ? {
+        source: core.source || "",
+        characterId: core.characterId ?? null,
+        partySlotIndex: Number.isInteger(partySlotIndex) ? partySlotIndex : null,
+      }
+      : null,
     skills: skills.map((skill) => ({
       name: String(skill.name || "이름 없는 스킬"),
       stat: skill.stat || "",
@@ -1138,6 +1147,65 @@ function getTemporaryUnitStatLabel(shortKey) {
 
 function getTemporaryUnitStatTotal(unit, shortKey) {
   return Number(unit.primary?.[shortKey] || 0) + Number(unit.bonus?.[shortKey] || 0);
+}
+
+function getTemporaryUnitBackingEntity(unit) {
+  const core = unit.core || {};
+  if (core.source === "main" && core.characterId) return game.characters[core.characterId] || null;
+  if (core.source === "party" && Number.isInteger(core.partySlotIndex)) {
+    return getActiveCharacter().partySlots?.[core.partySlotIndex] || null;
+  }
+  return null;
+}
+
+function applyTemporaryResourcesToEntity(entity, unit) {
+  const maxHp = getResourceMax(entity, "hp");
+  const maxStamina = getResourceMax(entity, "stamina");
+  const hp = clamp(Math.round(Number(unit.hp) || 0), 0, maxHp);
+  const stamina = clamp(Math.round(Number(unit.stamina) || 0), 0, maxStamina);
+
+  getStatState(entity, "hp").decrease = clamp(maxHp - hp, 0, maxHp);
+  getStatState(entity, "stamina").decrease = clamp(maxStamina - stamina, 0, maxStamina);
+}
+
+function commitTemporaryUnitStatus(unit) {
+  let updated = false;
+  const combatant = game.combat?.combatants.find((entry) => entry.id === unit.id);
+
+  if (combatant) {
+    combatant.hp = clamp(Math.round(Number(unit.hp) || 0), 0, combatant.maxHp);
+    combatant.stamina = clamp(Math.round(Number(unit.stamina) || 0), 0, combatant.maxStamina);
+    syncCombatantToBacking(combatant);
+    updated = true;
+  } else {
+    const entity = getTemporaryUnitBackingEntity(unit);
+    if (entity) {
+      applyTemporaryResourcesToEntity(entity, unit);
+      updated = true;
+    }
+  }
+
+  if (updated) addLog(`${unit.name} 임시 상태창의 HP/SP를 본 상태창에 반영했습니다.`);
+  return updated;
+}
+
+function closeTemporaryUnitStatus({ commit = true, rerender = true } = {}) {
+  if (!temporaryUnitStatus) return false;
+
+  const updated = commit ? commitTemporaryUnitStatus(temporaryUnitStatus) : false;
+  temporaryUnitStatus = null;
+
+  if (updated) {
+    saveGame(true);
+    syncGameSystemFrame({ openBattle: Boolean(game.combat), reason: "temporary-status-close" });
+  }
+
+  if (rerender) {
+    if (updated) renderAll();
+    else renderSheet();
+  }
+
+  return updated;
 }
 
 function renderTemporaryUnitStatus(unit) {
@@ -1864,19 +1932,18 @@ function extractTotalsFromWorkbook(workbook) {
 
 document.addEventListener("click", (event) => {
   if (event.target.closest("[data-close-temp-status]")) {
-    temporaryUnitStatus = null;
-    renderSheet();
+    closeTemporaryUnitStatus();
     return;
   }
 
   const characterButton = event.target.closest("[data-character]");
   if (characterButton) {
+    closeTemporaryUnitStatus({ rerender: false });
     game.activeCharacterId = characterButton.dataset.character;
     activeTab = "overview";
     game.mode = "profile";
     selectedCombatantId = null;
     selectedTargetId = null;
-    temporaryUnitStatus = null;
     addLog(`${getActiveCharacter().name} 이야기를 선택했습니다.`);
     saveGame(true);
     renderAll();
@@ -1892,7 +1959,7 @@ document.addEventListener("click", (event) => {
 
   const tab = event.target.closest("[data-tab]");
   if (tab) {
-    temporaryUnitStatus = null;
+    closeTemporaryUnitStatus({ rerender: false });
     activeTab = tab.dataset.tab;
     renderSheet();
     return;
@@ -1917,7 +1984,7 @@ document.addEventListener("click", (event) => {
       game = createNewGame();
       activeTab = "overview";
       activeBagCategory = BAG_CATEGORIES[0].key;
-      temporaryUnitStatus = null;
+      closeTemporaryUnitStatus({ commit: false, rerender: false });
       addLog("저장 데이터를 초기화했습니다.");
       renderAll();
       syncGameSystemFrame({ openBattle: false, reason: "reset" });
