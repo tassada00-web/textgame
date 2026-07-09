@@ -101,6 +101,10 @@ const PRIMARY_STATS = [
   ["cha", "매력"]
 ];
 
+const CORE_SYNC_MESSAGE = "trpg-core:party-state";
+const CORE_COMBAT_START_REQUEST = "trpg-core:request-combat-start";
+const CORE_SYNC_PRIMARY_KEYS = PRIMARY_STATS.map(([key]) => key);
+
 const initialUnits = createExplorationRouteUnits();
 
 let units = structuredClone(initialUnits);
@@ -113,6 +117,7 @@ let selectedSaveId = null;
 let pendingConfirm = null;
 let activeSkill = null;
 let explorationState = createEmptyExplorationState();
+let externalCoreState = null;
 const SAVE_KEY = "trpg-battle-board-saves";
 const WEBHOOK_KEY = "trpg-battle-board-discord-webhook";
 const SKIP_DAMAGE_KEY = "trpg-battle-board-skip-damage";
@@ -588,6 +593,17 @@ function showMode(mode) {
 }
 
 function openBattleBoardFromExploration() {
+  if (externalCoreState?.combat?.combatants?.length) {
+    applyCoreSyncToBattle({ ...externalCoreState, openBattle: true });
+    return;
+  }
+
+  if (externalCoreState?.party?.length) {
+    requestCoreCombatStart();
+    applyCoreSyncToBattle({ ...externalCoreState, openBattle: true });
+    return;
+  }
+
   showMode("battle");
   if (!units.length) openMapModal();
 }
@@ -660,6 +676,196 @@ function goal(x, y) {
   });
 }
 
+function coreNumber(value, fallback = 0) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function normalizeCorePrimary(primary = {}) {
+  return Object.fromEntries(
+    CORE_SYNC_PRIMARY_KEYS.map((key) => [
+      key,
+      clamp(Math.round(coreNumber(primary[key], 10)), 0, 30)
+    ])
+  );
+}
+
+function normalizeCoreBonus(bonus = {}) {
+  return Object.fromEntries(
+    CORE_SYNC_PRIMARY_KEYS.map((key) => [
+      key,
+      clamp(Math.round(coreNumber(bonus[key], 0)), -99, 99)
+    ])
+  );
+}
+
+function normalizeCoreSkills(skills = []) {
+  if (!Array.isArray(skills)) return [];
+  return skills.map((skill) => ({
+    id: skill.id || crypto.randomUUID(),
+    name: skill.name || "",
+    stat: CORE_SYNC_PRIMARY_KEYS.includes(skill.stat) ? skill.stat : "str",
+    desc: skill.desc || skill.body || ""
+  }));
+}
+
+function getCoreUnitType(entry) {
+  if (entry?.type === "player" || entry?.source === "main") return "player";
+  if (entry?.type === "enemy" || entry?.side === "enemy") return "enemy";
+  return "ally";
+}
+
+function getCoreUnitLabel(entry, type, index) {
+  if (entry?.label) return String(entry.label);
+  if (type === "player") return "P";
+  if (type === "enemy") return `E-${index + 1}`;
+  return String(index + 1);
+}
+
+function takeCoreSpot(preferred, occupied, preferRight = false) {
+  const wanted = {
+    x: clamp(Math.round(coreNumber(preferred?.x, 0)), 0, cols - 1),
+    y: clamp(Math.round(coreNumber(preferred?.y, 0)), 0, rows - 1)
+  };
+  const wantedKey = `${wanted.x},${wanted.y}`;
+  if (!occupied.has(wantedKey)) {
+    occupied.add(wantedKey);
+    return wanted;
+  }
+
+  const xRange = [...Array(cols).keys()];
+  if (preferRight) xRange.reverse();
+  for (const x of xRange) {
+    for (let y = 0; y < rows; y += 1) {
+      const key = `${x},${y}`;
+      if (occupied.has(key)) continue;
+      occupied.add(key);
+      return { x, y };
+    }
+  }
+
+  return wanted;
+}
+
+function makeCoreSyncedUnit(entry, index, occupied) {
+  const type = getCoreUnitType(entry);
+  const label = getCoreUnitLabel(entry, type, index);
+  const spot = takeCoreSpot({ x: entry?.x, y: entry?.y }, occupied, type === "enemy");
+  const maxHp = Math.max(1, Math.round(coreNumber(entry?.maxHp, entry?.hp ?? 20)));
+  const maxStamina = Math.max(0, Math.round(coreNumber(entry?.maxStamina, entry?.stamina ?? 10)));
+  const piece = unit(type, label, spot.x, spot.y, entry?.name || label, {
+    hp: clamp(Math.round(coreNumber(entry?.hp, maxHp)), 0, maxHp),
+    maxHp,
+    stamina: clamp(Math.round(coreNumber(entry?.stamina, maxStamina)), 0, maxStamina),
+    maxStamina,
+    damage: Math.max(0, Math.round(coreNumber(entry?.damage, 0))),
+    primary: normalizeCorePrimary(entry?.primary),
+    bonus: normalizeCoreBonus(entry?.bonus),
+    skills: normalizeCoreSkills(entry?.skills)
+  });
+
+  piece.id = entry?.id || crypto.randomUUID();
+  piece.core = {
+    source: entry?.source || type,
+    characterId: entry?.characterId ?? null,
+    partySlotIndex: entry?.partySlotIndex ?? null,
+    initiative: entry?.initiative || null
+  };
+  piece.stats.armor = Math.max(0, Math.round(coreNumber(entry?.armor, 0)));
+  return piece;
+}
+
+function parseCoreObstacle(value) {
+  if (typeof value === "string") {
+    const [x, y] = value.split(",").map(Number);
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+  }
+  if (value && Number.isFinite(Number(value.x)) && Number.isFinite(Number(value.y))) {
+    return { x: Number(value.x), y: Number(value.y) };
+  }
+  return null;
+}
+
+function makeCoreObstacleUnits(payload, occupied) {
+  const obstacles = Array.isArray(payload?.exploration?.obstacles) ? payload.exploration.obstacles : [];
+  return obstacles
+    .map(parseCoreObstacle)
+    .filter(Boolean)
+    .map((point) => {
+      const key = `${clamp(point.x, 0, cols - 1)},${clamp(point.y, 0, rows - 1)}`;
+      if (occupied.has(key)) return null;
+      const spot = takeCoreSpot(point, occupied, false);
+      return obstacle(spot.x, spot.y);
+    })
+    .filter(Boolean);
+}
+
+function getCorePreservedUnits(occupied) {
+  return units
+    .filter((piece) => piece.type !== "player" && piece.type !== "ally")
+    .map((piece) => {
+      const spot = takeCoreSpot({ x: piece.x, y: piece.y }, occupied, piece.type === "enemy");
+      piece.x = spot.x;
+      piece.y = spot.y;
+      return piece;
+    });
+}
+
+function getCoreOrderSummary(payload) {
+  const combatants = payload?.combat?.combatants || [];
+  const byId = new Map(combatants.map((entry) => [entry.id, entry]));
+  const order = Array.isArray(payload?.combat?.order) ? payload.combat.order : [];
+  const names = order.map((id) => byId.get(id)?.name).filter(Boolean);
+  return names.length ? `Turn order: ${names.join(" > ")}` : "";
+}
+
+function applyCoreSyncToBattle(payload) {
+  const entries = payload?.combat?.combatants?.length ? payload.combat.combatants : payload?.party || [];
+  if (!entries.length) return;
+
+  const nextCols = payload?.combat?.cols ?? payload?.exploration?.cols ?? cols;
+  const nextRows = payload?.combat?.rows ?? payload?.exploration?.rows ?? rows;
+  cols = clamp(Math.round(coreNumber(nextCols, cols)), 4, 30);
+  rows = clamp(Math.round(coreNumber(nextRows, rows)), 4, 30);
+
+  const occupied = new Set();
+  const syncedUnits = entries.map((entry, index) => makeCoreSyncedUnit(entry, index, occupied));
+  const supportUnits = payload?.combat ? makeCoreObstacleUnits(payload, occupied) : getCorePreservedUnits(occupied);
+  units = [...syncedUnits, ...supportUnits];
+
+  const currentId = payload?.combat?.order?.[payload?.combat?.turnIndex || 0];
+  selectedUnitId = currentId && units.some((piece) => piece.id === currentId)
+    ? currentId
+    : syncedUnits.find((piece) => piece.type === "player")?.id ?? syncedUnits[0]?.id ?? null;
+  duel = null;
+  activeSkill = null;
+
+  showMode("battle");
+  const orderText = getCoreOrderSummary(payload);
+  writeLog(orderText || `Core party synced: ${syncedUnits.length} units.`, "*");
+}
+
+function handleCoreSyncMessage(event) {
+  const message = event.data;
+  if (!message || message.type !== CORE_SYNC_MESSAGE || !message.payload) return;
+
+  externalCoreState = message.payload;
+  if (externalCoreState.mode === "combat" || externalCoreState.openBattle) {
+    applyCoreSyncToBattle(externalCoreState);
+    return;
+  }
+
+  if (activeMode === "battle") {
+    showMode("exploration");
+  }
+}
+
+function requestCoreCombatStart() {
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: CORE_COMBAT_START_REQUEST }, "*");
+  }
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -705,7 +911,10 @@ function render() {
     el.type = "button";
     el.dataset.id = piece.id;
     el.textContent = piece.label;
-    el.title = `${piece.stats.name} | HP ${piece.stats.hp}/${piece.stats.maxHp} | STM ${piece.stats.stamina}/${piece.stats.maxStamina}`;
+    const initiativeTitle = piece.core?.initiative
+      ? ` | SPD ${piece.core.initiative.speed}${piece.core.initiative.tieRoll ? ` d${piece.core.initiative.speed}=${piece.core.initiative.tieRoll}` : ""}`
+      : "";
+    el.title = `${piece.stats.name} | HP ${piece.stats.hp}/${piece.stats.maxHp} | STM ${piece.stats.stamina}/${piece.stats.maxStamina}${initiativeTitle}`;
     el.addEventListener("pointerdown", startDrag);
     cell.append(el);
   });
@@ -2228,6 +2437,8 @@ confirmNo.addEventListener("click", closeConfirm);
 document.addEventListener("contextmenu", (event) => {
   if (!event.target.closest(".piece")) event.preventDefault();
 });
+
+window.addEventListener("message", handleCoreSyncMessage);
 
 render();
 renderSheet();

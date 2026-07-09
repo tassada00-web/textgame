@@ -16,6 +16,18 @@ const STAT_DEFS = [
 const PRIMARY_KEYS = ["strength", "vitality", "speed", "precision", "intelligence", "wisdom", "charm"];
 const STAT_LABELS = Object.fromEntries(STAT_DEFS.map((stat) => [stat.key, stat.label]));
 const SAVE_KEY = "trpg-rpg-core:data:v1";
+const GAME_SYSTEM_SYNC_MESSAGE = "trpg-core:party-state";
+const GAME_SYSTEM_COMBAT_START_REQUEST = "trpg-core:request-combat-start";
+const GAME_SYSTEM_FRAME_ID = "gameSystemFrame";
+const GAME_SYSTEM_STAT_KEYS = {
+  strength: "str",
+  vitality: "con",
+  speed: "spd",
+  precision: "pre",
+  intelligence: "int",
+  wisdom: "wis",
+  charm: "cha",
+};
 const BAG_CATEGORIES = [
   { key: "equipment", label: "장비" },
   { key: "consumables", label: "소모품" },
@@ -378,6 +390,177 @@ function getCombatStats(entity) {
   return stats;
 }
 
+function getGameSystemPrimaryStats(stats) {
+  return Object.fromEntries(
+    Object.entries(GAME_SYSTEM_STAT_KEYS).map(([sourceKey, boardKey]) => [
+      boardKey,
+      Math.max(0, Math.round(Number(stats[sourceKey] || 0))),
+    ]),
+  );
+}
+
+function getGameSystemSkillStat(stat) {
+  return GAME_SYSTEM_STAT_KEYS[stat] || stat || "str";
+}
+
+function getGameSystemSkills(skills = []) {
+  return skills.map((skill) => ({
+    id: skill.id || crypto.randomUUID(),
+    name: skill.name || "",
+    stat: getGameSystemSkillStat(skill.stat),
+    desc: skill.body || skill.desc || "",
+  }));
+}
+
+function getPartyBattlePlacements() {
+  const { partyX, partyY, cols, rows } = game.exploration;
+  return [
+    { x: partyX, y: partyY },
+    { x: partyX, y: partyY + 1 },
+    { x: partyX + 1, y: partyY },
+    { x: partyX, y: partyY - 1 },
+  ].map((spot) => ({
+    x: clamp(spot.x, 0, cols - 1),
+    y: clamp(spot.y, 0, rows - 1),
+  }));
+}
+
+function makeGameSystemEntityPayload(entity, type, options = {}) {
+  const stats = getCombatStats(entity);
+  return {
+    id: options.id || entity.id || crypto.randomUUID(),
+    type,
+    side: type === "enemy" ? "enemy" : "party",
+    source: options.source || type,
+    characterId: options.characterId ?? null,
+    partySlotIndex: options.partySlotIndex ?? null,
+    label: options.label || "",
+    name: entity.name || options.label || "",
+    x: options.x ?? 0,
+    y: options.y ?? 0,
+    hp: stats.hp,
+    maxHp: stats.maxHp,
+    stamina: stats.stamina,
+    maxStamina: stats.maxStamina,
+    speed: stats.speed,
+    damage: stats.damage || 0,
+    armor: stats.armor || 0,
+    primary: getGameSystemPrimaryStats(stats),
+    bonus: { str: 0, con: 0, spd: 0, pre: 0, int: 0, wis: 0, cha: 0 },
+    skills: getGameSystemSkills(entity.skills || []),
+    initiative: options.initiative || null,
+  };
+}
+
+function makeGameSystemCombatantPayload(combatant) {
+  const type = combatant.side === "enemy" ? "enemy" : combatant.source === "main" ? "player" : "ally";
+  return {
+    id: combatant.id,
+    type,
+    side: combatant.side,
+    source: combatant.source,
+    characterId: combatant.characterId ?? null,
+    partySlotIndex: combatant.partySlotIndex ?? null,
+    label: getCombatantLabel(combatant),
+    name: combatant.name,
+    x: combatant.x,
+    y: combatant.y,
+    hp: combatant.hp,
+    maxHp: combatant.maxHp,
+    stamina: combatant.stamina,
+    maxStamina: combatant.maxStamina,
+    speed: combatant.stats.speed,
+    damage: combatant.stats.damage || 0,
+    armor: combatant.stats.armor || 0,
+    primary: getGameSystemPrimaryStats(combatant.stats),
+    bonus: { str: 0, con: 0, spd: 0, pre: 0, int: 0, wis: 0, cha: 0 },
+    skills: getGameSystemSkills(combatant.skills || []),
+    initiative: combatant.initiative || null,
+  };
+}
+
+function buildGameSystemPartyPayload() {
+  const character = getActiveCharacter();
+  character.partySlots ??= [null, null, null];
+  const placements = getPartyBattlePlacements();
+  return [
+    makeGameSystemEntityPayload(character, "player", {
+      source: "main",
+      characterId: character.id,
+      label: "P",
+      x: placements[0].x,
+      y: placements[0].y,
+    }),
+    ...character.partySlots
+      .map((member, index) => member && member.active !== false
+        ? makeGameSystemEntityPayload(member, "ally", {
+          source: "party",
+          partySlotIndex: index,
+          label: String(index + 1),
+          x: placements[index + 1]?.x ?? placements[0].x,
+          y: placements[index + 1]?.y ?? placements[0].y,
+        })
+        : null)
+      .filter(Boolean),
+  ];
+}
+
+function buildGameSystemSyncPayload(openBattle = false, reason = "sync") {
+  return {
+    schemaVersion: 1,
+    reason,
+    openBattle,
+    mode: game.mode,
+    activeCharacterId: game.activeCharacterId,
+    exploration: {
+      cols: game.exploration.cols,
+      rows: game.exploration.rows,
+      partyX: game.exploration.partyX,
+      partyY: game.exploration.partyY,
+      obstacles: [...game.exploration.obstacles],
+    },
+    party: buildGameSystemPartyPayload(),
+    combat: game.combat
+      ? {
+        round: game.combat.round,
+        turnIndex: game.combat.turnIndex,
+        cols: game.exploration.cols,
+        rows: game.exploration.rows,
+        order: [...game.combat.order],
+        combatants: game.combat.combatants.map(makeGameSystemCombatantPayload),
+      }
+      : null,
+  };
+}
+
+function postGameSystemState({ openBattle = false, reason = "sync" } = {}) {
+  const frame = document.getElementById(GAME_SYSTEM_FRAME_ID);
+  if (!frame?.contentWindow) return;
+
+  const targetOrigin = window.location.protocol === "file:" ? "*" : window.location.origin;
+  frame.contentWindow.postMessage({
+    type: GAME_SYSTEM_SYNC_MESSAGE,
+    payload: buildGameSystemSyncPayload(openBattle, reason),
+  }, targetOrigin);
+}
+
+function syncGameSystemFrame(options = {}) {
+  requestAnimationFrame(() => postGameSystemState(options));
+}
+
+function handleGameSystemMessage(event) {
+  const frame = document.getElementById(GAME_SYSTEM_FRAME_ID);
+  if (!frame?.contentWindow || event.source !== frame.contentWindow) return;
+  if (event.data?.type !== GAME_SYSTEM_COMBAT_START_REQUEST) return;
+
+  if (!game.combat) {
+    startCombat();
+    return;
+  }
+
+  syncGameSystemFrame({ openBattle: true, reason: "combat-start-request" });
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -409,6 +592,7 @@ function setMode(mode) {
   }
   game.mode = mode;
   renderAll();
+  syncGameSystemFrame({ openBattle: mode === "combat" && Boolean(game.combat), reason: `mode:${mode}` });
 }
 
 function renderAll() {
@@ -718,6 +902,7 @@ function movePartyTo(x, y) {
   addLog(`파티 이동: (${x + 1}, ${y + 1})`);
   saveGame(true);
   renderAll();
+  syncGameSystemFrame({ openBattle: false, reason: "explore-move" });
 }
 
 function getCombatantAt(x, y) {
@@ -727,15 +912,7 @@ function getCombatantAt(x, y) {
 function startCombat() {
   const character = getActiveCharacter();
   const { partyX, partyY, cols, rows } = game.exploration;
-  const placements = [
-    { x: partyX, y: partyY },
-    { x: partyX, y: partyY + 1 },
-    { x: partyX + 1, y: partyY },
-    { x: partyX, y: partyY - 1 },
-  ].map((spot) => ({
-    x: clamp(spot.x, 0, cols - 1),
-    y: clamp(spot.y, 0, rows - 1),
-  }));
+  const placements = getPartyBattlePlacements();
 
   const party = [
     makeCombatantFromEntity(character, "party", { source: "main", characterId: character.id, label: "P", x: placements[0].x, y: placements[0].y }),
@@ -765,6 +942,7 @@ function startCombat() {
   addLog("전투가 시작되었습니다. 속도 동률은 각자의 속도 주사위로 순서를 고정합니다.");
   saveGame(true);
   renderAll();
+  syncGameSystemFrame({ openBattle: true, reason: "combat-start" });
 }
 
 function makeCombatantFromEntity(entity, side, options) {
@@ -1245,6 +1423,7 @@ function rollAttack() {
   advanceTurn();
   saveGame(true);
   renderAll();
+  syncGameSystemFrame({ openBattle: true, reason: "combat-roll" });
 }
 
 function applyDamage(combatant, amount) {
@@ -1304,6 +1483,7 @@ function endCombat() {
   addLog("전투를 종료하고 탐험 모드로 돌아왔습니다.");
   saveGame(true);
   renderAll();
+  syncGameSystemFrame({ openBattle: false, reason: "combat-end" });
 }
 
 function rollDie(sides) {
@@ -1320,6 +1500,7 @@ function moveCurrentActorTo(x, y) {
   addLog(`${actor.name} 이동: (${x + 1}, ${y + 1})`);
   saveGame(true);
   renderAll();
+  syncGameSystemFrame({ openBattle: true, reason: "combat-move" });
 }
 
 function selectCombatant(id) {
@@ -1342,6 +1523,7 @@ function addImportedCombatant(entity, side) {
   addLog(`${entity.name}을 ${side === "enemy" ? "적군" : "아군"} 전투원으로 추가했습니다.`);
   saveGame(true);
   renderAll();
+  syncGameSystemFrame({ openBattle: true, reason: "combatant-import" });
 }
 
 function findCombatSpawn(side) {
@@ -1366,6 +1548,7 @@ async function importPartyMember(file, index) {
   addLog(`${member.name}을 파티 슬롯 ${index + 1}에 등록했습니다.`);
   saveGame(true);
   renderAll();
+  syncGameSystemFrame({ openBattle: Boolean(game.combat), reason: "party-import" });
 }
 
 async function importCombatant(file) {
@@ -1573,6 +1756,7 @@ document.addEventListener("click", (event) => {
     addLog(`${getActiveCharacter().name} 이야기를 선택했습니다.`);
     saveGame(true);
     renderAll();
+    syncGameSystemFrame({ openBattle: false, reason: "character-switch" });
     return;
   }
 
@@ -1610,6 +1794,7 @@ document.addEventListener("click", (event) => {
       activeBagCategory = BAG_CATEGORIES[0].key;
       addLog("저장 데이터를 초기화했습니다.");
       renderAll();
+      syncGameSystemFrame({ openBattle: false, reason: "reset" });
     });
     return;
   }
@@ -1628,6 +1813,7 @@ document.addEventListener("click", (event) => {
     rebuildInitiative("속도 변화 반영");
     saveGame(true);
     renderAll();
+    syncGameSystemFrame({ openBattle: true, reason: "initiative-reroll" });
     return;
   }
 
@@ -1646,6 +1832,7 @@ document.addEventListener("click", (event) => {
     if (member) member.active = member.active === false;
     saveGame(true);
     renderAll();
+    syncGameSystemFrame({ openBattle: Boolean(game.combat), reason: "party-active-toggle" });
     return;
   }
 
@@ -1657,6 +1844,7 @@ document.addEventListener("click", (event) => {
     addLog(`파티 슬롯 ${index + 1}을 비웠습니다.`);
     saveGame(true);
     renderAll();
+    syncGameSystemFrame({ openBattle: Boolean(game.combat), reason: "party-clear" });
     return;
   }
 
@@ -1722,6 +1910,7 @@ document.addEventListener("click", (event) => {
     advanceTurn();
     saveGame(true);
     renderAll();
+    syncGameSystemFrame({ openBattle: true, reason: "turn-end" });
   }
 });
 
@@ -1734,6 +1923,7 @@ document.addEventListener("input", (event) => {
   saveGame(true);
   renderHeroCard();
   renderSheet();
+  syncGameSystemFrame({ openBattle: Boolean(game.combat), reason: "state-edit" });
 });
 
 document.addEventListener("change", async (event) => {
@@ -1778,4 +1968,10 @@ document.getElementById("confirmForm").addEventListener("submit", (event) => {
   action?.();
 });
 
+document.getElementById(GAME_SYSTEM_FRAME_ID)?.addEventListener("load", () => {
+  syncGameSystemFrame({ openBattle: game.mode === "combat" && Boolean(game.combat), reason: "frame-load" });
+});
+window.addEventListener("message", handleGameSystemMessage);
+
 renderAll();
+syncGameSystemFrame({ openBattle: game.mode === "combat" && Boolean(game.combat), reason: "initial" });
