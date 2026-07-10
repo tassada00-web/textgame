@@ -5,20 +5,16 @@ let activeMode = "exploration";
 const explorationApp = document.querySelector("#explorationApp");
 const battleApp = document.querySelector("#battleApp");
 const explorationBoard = document.querySelector("#explorationBoard");
+const openExplorationSetup = document.querySelector("#openExplorationSetup");
+const explorationSetupModal = document.querySelector("#explorationSetupModal");
+const closeExplorationSetup = document.querySelector("#closeExplorationSetup");
+const cancelExplorationSetup = document.querySelector("#cancelExplorationSetup");
 const explorationSize = document.querySelector("#explorationSize");
 const explorationForks = document.querySelector("#explorationForks");
 const explorationGoals = document.querySelector("#explorationGoals");
 const createExploration = document.querySelector("#createExploration");
-const explorationStepsInput = document.querySelector("#explorationStepsInput");
-const applyExplorationSteps = document.querySelector("#applyExplorationSteps");
-const explorationStepsLeft = document.querySelector("#explorationStepsLeft");
-const toggleExplorationFog = document.querySelector("#toggleExplorationFog");
-const explorationPosition = document.querySelector("#explorationPosition");
-const explorationTileText = document.querySelector("#explorationTileText");
 const explorationLog = document.querySelector("#explorationLog");
-const openBattleMode = document.querySelector("#openBattleMode");
 const captureExplorationImage = document.querySelector("#captureExplorationImage");
-const openExplorationSaves = document.querySelector("#openExplorationSaves");
 const backToExploration = document.querySelector("#backToExploration");
 const board = document.querySelector("#board");
 const boardWrap = document.querySelector(".board-wrap");
@@ -38,7 +34,6 @@ const addSkillButton = document.querySelector("#addSkill");
 const deleteUnit = document.querySelector("#deleteUnit");
 const resetMap = document.querySelector("#resetMap");
 const editMap = document.querySelector("#editMap");
-const saveLoadMap = document.querySelector("#saveLoadMap");
 const captureMapImage = document.querySelector("#captureMapImage");
 const duelBar = document.querySelector("#duelBar");
 const duelTitle = document.querySelector("#duelTitle");
@@ -60,8 +55,6 @@ const saveList = document.querySelector("#saveList");
 const mapSaveList = document.querySelector("#mapSaveList");
 const saveMapButton = document.querySelector("#saveMapButton");
 const loadMapButton = document.querySelector("#loadMapButton");
-const mapSaveButton = document.querySelector("#mapSaveButton");
-const mapLoadButton = document.querySelector("#mapLoadButton");
 const nameModal = document.querySelector("#nameModal");
 const saveNameInput = document.querySelector("#saveNameInput");
 const closeNameModal = document.querySelector("#closeNameModal");
@@ -157,7 +150,7 @@ const EXPLORATION_TILE_LABELS = {
   goal: "목표"
 };
 const EXPLORATION_TILE_MESSAGES = {
-  start: "출발점입니다. 다음 행동력을 기다립니다.",
+  start: "출발점입니다. 인접한 길을 선택해 이동하세요.",
   normal: "조용한 진행 구간입니다. 다음 장면을 이어가세요.",
   fortune: "행운 칸입니다. 보상, 단서, 유리한 판정을 줄 수 있습니다.",
   danger: "불행 칸입니다. 함정, 소모, 위협, 불리한 판정을 줄 수 있습니다.",
@@ -205,8 +198,17 @@ function buildExplorationFromControls() {
   const goalCount = clamp(Number(explorationGoals.value) || 3, 1, 10);
 
   explorationState = generateExplorationState(preset, forkCount, goalCount);
+  closeExplorationSetupModal();
   addExplorationLog(`탐험판 [${explorationState.cols} x ${explorationState.rows}] 생성 완료.`);
   renderExploration();
+}
+
+function openExplorationSetupModal() {
+  explorationSetupModal.hidden = false;
+}
+
+function closeExplorationSetupModal() {
+  explorationSetupModal.hidden = true;
 }
 
 function generateExplorationState(preset, forkCount, goalCount) {
@@ -473,22 +475,6 @@ function renderExploration() {
 }
 
 function renderExplorationStatus() {
-  if (!explorationPosition || !explorationTileText || !explorationStepsLeft || !toggleExplorationFog) return;
-
-  explorationStepsLeft.textContent = String(explorationState.moveSteps);
-  toggleExplorationFog.textContent = explorationState.fog ? "발판 보이기" : "발판 숨기기";
-
-  if (!explorationState.built) {
-    explorationPosition.textContent = "-";
-    explorationTileText.textContent = "탐험판을 생성하면 진행 상태가 표시됩니다.";
-    return;
-  }
-
-  const { x, y } = explorationState.player;
-  const tile = explorationState.tiles[y][x];
-  const label = EXPLORATION_TILE_LABELS[tile.kind] ?? "알 수 없음";
-  explorationPosition.textContent = `(${x + 1}, ${y + 1})`;
-  explorationTileText.textContent = `${label}: ${EXPLORATION_TILE_MESSAGES[tile.kind] ?? ""}`;
 }
 
 function renderExplorationLog() {
@@ -504,36 +490,18 @@ function renderExplorationLog() {
 }
 
 function isExplorationMoveTarget(x, y) {
-  if (!explorationState.built || explorationState.moveSteps <= 0) return false;
+  if (!explorationState.built) return false;
   if (!explorationState.tiles[y]?.[x]?.open) return false;
   const distance = Math.abs(explorationState.player.x - x) + Math.abs(explorationState.player.y - y);
   return distance === 1;
-}
-
-function applyExplorationMoveSteps() {
-  if (!explorationState.built) {
-    addExplorationLog("먼저 탐험판을 생성하세요.");
-    return;
-  }
-
-  const steps = clamp(Number(explorationStepsInput.value) || 0, 0, 99);
-  if (steps <= 0) return;
-  explorationState.moveSteps = steps;
-  explorationStepsInput.value = "";
-  addExplorationLog(`행동력 ${steps} 주입.`);
-  renderExploration();
 }
 
 function moveExplorationPlayer(x, y) {
   if (!isExplorationMoveTarget(x, y)) return;
 
   explorationState.player = { x, y };
-  explorationState.moveSteps = Math.max(0, explorationState.moveSteps - 1);
   addExplorationLog(`이동: (${x + 1}, ${y + 1})`);
-
-  if (explorationState.moveSteps === 0) {
-    resolveCurrentExplorationTile();
-  }
+  resolveCurrentExplorationTile();
 
   renderExploration();
 }
@@ -546,13 +514,6 @@ function resolveCurrentExplorationTile() {
   addExplorationLog(`${label}: ${message}`);
 }
 
-function toggleExplorationFogMode() {
-  if (!explorationState.built) return;
-  explorationState.fog = !explorationState.fog;
-  addExplorationLog(explorationState.fog ? "발판을 숨겼습니다." : "발판을 공개했습니다.");
-  renderExploration();
-}
-
 function addExplorationLog(text) {
   const time = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
   explorationState.log.unshift({ time, text });
@@ -561,7 +522,10 @@ function addExplorationLog(text) {
 }
 
 function buildExplorationSave() {
-  return structuredClone(explorationState);
+  return {
+    ...structuredClone(explorationState),
+    fog: false
+  };
 }
 
 function restoreExplorationSave(savedExploration) {
@@ -574,6 +538,7 @@ function restoreExplorationSave(savedExploration) {
   explorationState = {
     ...createEmptyExplorationState(),
     ...structuredClone(savedExploration),
+    fog: false,
     log: Array.isArray(savedExploration.log) ? structuredClone(savedExploration.log) : []
   };
   renderExploration();
@@ -2129,11 +2094,13 @@ function applyMapOnlyChanges(event) {
 }
 
 function openSaveLoadModal() {
+  if (!saveLoadModal) return;
   renderSaveList();
   saveLoadModal.hidden = false;
 }
 
 function closeSaveLoad() {
+  if (!saveLoadModal) return;
   saveLoadModal.hidden = true;
 }
 
@@ -2355,7 +2322,7 @@ function applyCoreBoardState(payload) {
   restoreBattleSave(boardState.battle);
   restoreExplorationSave(boardState.exploration);
   showMode(boardState.activeMode);
-  if (!saveLoadModal.hidden || !mapModal.hidden) renderSaveList();
+  if ((saveLoadModal && !saveLoadModal.hidden) || !mapModal.hidden) renderSaveList();
 }
 
 function sendCoreBoardState(requestId) {
@@ -2427,15 +2394,14 @@ function generateMapUnits(allyCount, enemyCount, obstacleCount) {
   return generated;
 }
 
-createExploration.addEventListener("click", buildExplorationFromControls);
-applyExplorationSteps.addEventListener("click", applyExplorationMoveSteps);
-explorationStepsInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") applyExplorationMoveSteps();
+openExplorationSetup.addEventListener("click", openExplorationSetupModal);
+explorationSetupModal.addEventListener("submit", (event) => {
+  event.preventDefault();
+  buildExplorationFromControls();
 });
-toggleExplorationFog.addEventListener("click", toggleExplorationFogMode);
-openBattleMode.addEventListener("click", openBattleBoardFromExploration);
+closeExplorationSetup.addEventListener("click", closeExplorationSetupModal);
+cancelExplorationSetup.addEventListener("click", closeExplorationSetupModal);
 captureExplorationImage.addEventListener("click", captureExplorationBoardImage);
-openExplorationSaves.addEventListener("click", openSaveLoadModal);
 backToExploration.addEventListener("click", () => showMode("exploration"));
 
 board.addEventListener("contextmenu", (event) => {
@@ -2467,7 +2433,6 @@ addSkillButton.addEventListener("click", addSkill);
 deleteUnit.addEventListener("click", removeSelectedUnit);
 resetMap.addEventListener("click", resetToBlank);
 editMap.addEventListener("click", openEditMapModal);
-saveLoadMap.addEventListener("click", openSaveLoadModal);
 captureMapImage.addEventListener("click", captureBoardImage);
 mapModal.addEventListener("submit", buildMapFromForm);
 closeMapModal.addEventListener("click", closeMapResetModal);
@@ -2475,11 +2440,9 @@ cancelMapModal.addEventListener("click", closeMapResetModal);
 editMapModal.addEventListener("submit", applyMapOnlyChanges);
 closeEditMapModal.addEventListener("click", closeEditMap);
 cancelEditMapModal.addEventListener("click", closeEditMap);
-closeSaveLoadModal.addEventListener("click", closeSaveLoad);
-saveMapButton.addEventListener("click", requestSaveMap);
-loadMapButton.addEventListener("click", requestLoadMap);
-mapSaveButton.addEventListener("click", requestSaveMap);
-mapLoadButton.addEventListener("click", requestLoadMap);
+closeSaveLoadModal?.addEventListener("click", closeSaveLoad);
+saveMapButton?.addEventListener("click", requestSaveMap);
+loadMapButton?.addEventListener("click", requestLoadMap);
 nameModal.addEventListener("submit", createNewSave);
 closeNameModal.addEventListener("click", closeNameInput);
 cancelNameModal.addEventListener("click", closeNameInput);

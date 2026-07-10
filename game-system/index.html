@@ -8,57 +8,16 @@
   </head>
   <body>
     <main id="explorationApp" class="exploration-app app-view" aria-label="탐험 보드">
-      <aside class="exploration-panel" aria-label="탐험 설정과 진행">
+      <section class="exploration-toolbar" aria-label="탐험 보드 조작">
         <header class="mode-head">
           <span>탐험 보드</span>
           <strong>모험 진행판</strong>
         </header>
-
-        <section class="exploration-card" aria-label="탐험 생성">
-          <h2>진행판 생성</h2>
-          <div class="exploration-form-grid">
-            <label>
-              규모
-              <select id="explorationSize">
-                <option value="tiny">더 작게</option>
-                <option value="small">작게</option>
-                <option value="medium">보통</option>
-                <option value="large" selected>넓게</option>
-              </select>
-            </label>
-            <label>
-              갈림길
-              <input id="explorationForks" type="number" min="1" max="30" value="8">
-            </label>
-            <label>
-              목표
-              <input id="explorationGoals" type="number" min="1" max="10" value="3">
-            </label>
-          </div>
-          <button id="createExploration" type="button">탐험판 생성</button>
-        </section>
-
-        <section class="exploration-card" aria-label="행동력 이동">
-          <h2>행동력</h2>
-          <div class="action-row">
-            <input id="explorationStepsInput" type="number" min="0" max="99" placeholder="0">
-            <button id="applyExplorationSteps" type="button">주입</button>
-          </div>
-          <div class="step-counter">
-            남은 행동력 <strong id="explorationStepsLeft">0</strong>
-          </div>
-          <button id="toggleExplorationFog" class="secondary" type="button">발판 숨기기</button>
-        </section>
-
-        <section class="exploration-card" aria-label="탐험 도구">
-          <h2>도구</h2>
-          <div class="exploration-actions">
-            <button id="openBattleMode" type="button">전투 보드 열기</button>
-            <button id="captureExplorationImage" type="button">진행판 이미지 찍기</button>
-            <button id="openExplorationSaves" type="button">저장/불러오기</button>
-          </div>
-        </section>
-      </aside>
+        <div class="exploration-actions inline-actions">
+          <button id="openExplorationSetup" type="button">진행판 생성</button>
+          <button id="captureExplorationImage" type="button">진행판 이미지 찍기</button>
+        </div>
+      </section>
 
       <section class="exploration-board-wrap" aria-label="탐험 진행판">
         <div id="explorationBoard" class="exploration-board" aria-label="탐험 격자"></div>
@@ -76,13 +35,40 @@
           </div>
         </section>
 
-        <section class="exploration-card status-card">
-          <h2>현재 위치</h2>
-          <strong id="explorationPosition">-</strong>
-          <p id="explorationTileText">탐험판을 생성하면 진행 상태가 표시됩니다.</p>
-        </section>
       </aside>
     </main>
+
+    <form id="explorationSetupModal" class="modal" aria-label="진행판 생성" hidden>
+      <section class="modal-panel exploration-setup-panel">
+        <header>
+          <h2>진행판 생성</h2>
+          <button id="closeExplorationSetup" type="button" aria-label="닫기">×</button>
+        </header>
+        <div class="exploration-form-grid">
+          <label>
+            규모
+            <select id="explorationSize">
+              <option value="tiny">더 작게</option>
+              <option value="small">작게</option>
+              <option value="medium">보통</option>
+              <option value="large" selected>넓게</option>
+            </select>
+          </label>
+          <label>
+            갈림길
+            <input id="explorationForks" type="number" min="1" max="30" value="8">
+          </label>
+          <label>
+            목표
+            <input id="explorationGoals" type="number" min="1" max="10" value="3">
+          </label>
+        </div>
+        <menu>
+          <button id="cancelExplorationSetup" type="button">취소</button>
+          <button id="createExploration" type="submit">생성</button>
+        </menu>
+      </section>
+    </form>
 
     <main id="battleApp" class="app app-view" aria-label="TRPG 전술 보드" hidden>
       <aside id="duelBar" class="duel-bar" aria-label="주사위 판정 대결" hidden>
@@ -187,7 +173,6 @@
           <button id="backToExploration" type="button" hidden>탐험 보드</button>
           <button id="resetMap" type="button">맵 재설정</button>
           <button id="editMap" type="button">맵만 수정</button>
-          <button id="saveLoadMap" type="button">맵 저장/불러오기</button>
           <button id="captureMapImage" type="button">이미지 찍기</button>
         </div>
 
@@ -227,14 +212,6 @@
           </label>
         </div>
         <p>플레이어 말판은 항상 1개 생성됩니다.</p>
-        <div class="map-modal-saves">
-          <h3>저장된 맵</h3>
-          <div id="mapSaveList" class="save-list compact-save-list" aria-label="맵 재설정 저장 기록"></div>
-          <div class="map-save-actions">
-            <button id="mapSaveButton" type="button">저장하기</button>
-            <button id="mapLoadButton" type="button">불러오기</button>
-          </div>
-        </div>
         <menu>
           <button id="cancelMapModal" type="button">취소</button>
           <button type="submit">생성</button>
@@ -277,20 +254,6 @@
         </menu>
       </section>
     </form>
-
-    <section id="saveLoadModal" class="modal" aria-label="맵 저장과 불러오기" hidden>
-      <div class="modal-panel save-panel">
-        <header>
-          <h2>맵 저장/불러오기</h2>
-          <button id="closeSaveLoadModal" type="button" aria-label="닫기">×</button>
-        </header>
-        <div id="saveList" class="save-list" aria-label="저장된 기록"></div>
-        <menu>
-          <button id="saveMapButton" type="button">저장하기</button>
-          <button id="loadMapButton" type="button">불러오기</button>
-        </menu>
-      </div>
-    </section>
 
     <form id="nameModal" class="modal" aria-label="저장 이름 입력" hidden>
       <section class="modal-panel">

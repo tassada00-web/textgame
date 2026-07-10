@@ -69,7 +69,8 @@ button:hover {
   max-height: 100dvh;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 310px;
+  grid-template-columns: minmax(0, 1fr) 230px;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   padding: 10px;
   background:
@@ -77,7 +78,7 @@ button:hover {
     #050607;
 }
 
-.exploration-panel,
+.exploration-toolbar,
 .exploration-side,
 .exploration-board-wrap {
   min-height: 0;
@@ -86,7 +87,16 @@ button:hover {
   background: #0b0b0b;
 }
 
-.exploration-panel,
+.exploration-toolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: auto;
+  padding: 10px 12px;
+}
+
 .exploration-side {
   display: grid;
   align-content: start;
@@ -131,9 +141,7 @@ button:hover {
   margin-bottom: 10px;
 }
 
-.exploration-form-grid label,
-.action-row,
-.step-counter {
+.exploration-form-grid label {
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
@@ -149,8 +157,7 @@ button:hover {
 }
 
 .exploration-form-grid input,
-.exploration-form-grid select,
-.action-row input {
+.exploration-form-grid select {
   min-width: 0;
   min-height: 36px;
   border: 1px solid #3c3c3c;
@@ -158,25 +165,6 @@ button:hover {
   background: #080808;
   color: var(--text);
   padding: 6px 8px;
-}
-
-.action-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-}
-
-.step-counter {
-  margin: 10px 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.step-counter strong {
-  color: var(--line);
-  font-size: 28px;
 }
 
 .secondary {
@@ -189,7 +177,16 @@ button:hover {
   gap: 8px;
 }
 
+.inline-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .exploration-board-wrap {
+  grid-column: 1;
+  grid-row: 2;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -201,8 +198,8 @@ button:hover {
   --explore-cols: 30;
   --explore-rows: 20;
   --explore-cell: min(
-    calc((100vw - 680px) / var(--explore-cols)),
-    calc((100vh - 80px) / var(--explore-rows)),
+    calc((100vw - 290px) / var(--explore-cols)),
+    calc((100vh - 130px) / var(--explore-rows)),
     34px
   );
   display: grid;
@@ -387,19 +384,6 @@ button:hover {
 
 .tile-key.goal {
   background: #1f7a47;
-}
-
-.status-card strong {
-  display: block;
-  color: var(--line);
-  font-size: 28px;
-  margin-bottom: 8px;
-}
-
-.status-card p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.45;
 }
 
 .app {
@@ -1377,7 +1361,7 @@ button {
   color: var(--text);
 }
 
-.exploration-panel,
+.exploration-toolbar,
 .exploration-side,
 .exploration-board-wrap,
 .board-wrap,
@@ -1401,8 +1385,6 @@ button {
 }
 
 .mode-head span,
-.step-counter strong,
-.status-card strong,
 .duel-card small,
 .duel-side h3,
 .sheet-type,
@@ -1412,7 +1394,6 @@ button {
 
 .exploration-form-grid input,
 .exploration-form-grid select,
-.action-row input,
 .unit-sheet input,
 .skill-card textarea,
 .skill-stat-row select,
