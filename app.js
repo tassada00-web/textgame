@@ -718,9 +718,8 @@ function postGameSystemBoardState(boardState, reason = "board-state-sync", activ
 async function syncActiveCharacterBoardStateToFrame({ reason = "board-state-sync", migrateLegacy = false } = {}) {
   await ensureActiveCharacterBoardState({ migrateLegacy });
   const character = getActiveCharacter();
-  if (!character.boardState && migrateLegacy && character.id === "ria") return;
-  postGameSystemBoardState(character.boardState, reason);
-  syncGameSystemFrame({ openBattle: game.mode === "combat" && Boolean(game.combat), reason });
+  if (character.boardState) postGameSystemBoardState(character.boardState, reason);
+  syncGameSystemFrame({ openBattle: game.mode === "combat", reason });
 }
 
 async function saveFullGame(silent = false) {
@@ -797,7 +796,7 @@ function setMode(mode) {
     const boardMode = mode === "combat" ? "battle" : "exploration";
     if (getActiveCharacter().boardState) {
       postGameSystemBoardState(getActiveCharacter().boardState, `mode:${mode}`, boardMode);
-      syncGameSystemFrame({ openBattle: false, reason: `mode:${mode}` });
+      syncGameSystemFrame({ openBattle: mode === "combat", reason: `mode:${mode}` });
       return;
     }
   }

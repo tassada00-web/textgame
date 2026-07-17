@@ -815,12 +815,12 @@ function handleCoreSyncMessage(event) {
   if (message.type !== CORE_SYNC_MESSAGE || !message.payload) return;
 
   externalCoreState = message.payload;
-  if (externalCoreState.openBattle || externalCoreState.combat?.combatants?.length) {
+  if (externalCoreState.openBattle || externalCoreState.mode === "combat" || externalCoreState.combat?.combatants?.length) {
     applyCoreSyncToBattle(externalCoreState);
     return;
   }
 
-  if (activeMode === "battle") {
+  if (externalCoreState.mode === "explore" && activeMode === "battle") {
     showMode("exploration");
   }
 }
