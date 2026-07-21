@@ -150,11 +150,11 @@ const EXPLORATION_TILE_LABELS = {
   goal: "목표"
 };
 const EXPLORATION_TILE_MESSAGES = {
-  start: "출발점입니다. 인접한 길을 선택해 이동하세요.",
-  normal: "조용한 진행 구간입니다. 다음 장면을 이어가세요.",
-  fortune: "행운 칸입니다. 보상, 단서, 유리한 판정을 줄 수 있습니다.",
-  danger: "불행 칸입니다. 함정, 소모, 위협, 불리한 판정을 줄 수 있습니다.",
-  goal: "목표 지점입니다. 이 구간의 목적지에 도달했습니다."
+  start: "출발점이야. 인접한 길을 선택해 이동해.",
+  normal: "조용한 진행 구간이야. 다음 장면을 이어가.",
+  fortune: "행운 칸이야. 보상, 단서, 유리한 판정을 줄 수 있어.",
+  danger: "불행 칸이야. 함정, 소모, 위협, 불리한 판정을 줄 수 있어.",
+  goal: "목표 지점이야. 이 구간의 목적지에 도달했어."
 };
 const SKILL_IMPORT_STOP_LABELS = new Set(["직업", "상태", "장비효과"]);
 const SHEET_STAT_LABELS = {
@@ -480,7 +480,7 @@ function renderExplorationStatus() {
 function renderExplorationLog() {
   if (!explorationLog) return;
   if (!explorationState.log.length) {
-    explorationLog.innerHTML = `<p>탐험 기록이 없습니다.</p>`;
+    explorationLog.innerHTML = `<p>탐험 기록이 없어.</p>`;
     return;
   }
 
@@ -1176,7 +1176,7 @@ function resolveDrop(piece, x, y) {
   }
 
   if (target.type === "obstacle") {
-    writeLog("장애물이 있어 이동할 수 없습니다.", "×");
+    writeLog("장애물이 있어서 이동할 수 없어.", "×");
     return;
   }
 
@@ -1185,7 +1185,7 @@ function resolveDrop(piece, x, y) {
     return;
   }
 
-  writeLog("같은 편 유닛 위로는 이동할 수 없습니다.", "!");
+  writeLog("같은 편 유닛 위로는 이동할 수 없어.", "!");
 }
 
 function isEnemy(attacker, target) {
@@ -1406,7 +1406,7 @@ function extractTotalsFromWorkbook(workbook) {
 function applyImportedStats({ name, totals, skills = [] }) {
   const piece = getUnit(selectedUnitId);
   if (!piece) {
-    writeLog("능력치를 적용할 말을 먼저 우클릭으로 선택하세요.", "!");
+    writeLog("능력치를 적용할 말을 먼저 우클릭으로 선택해.", "!");
     return;
   }
 
@@ -1442,13 +1442,13 @@ function applyImportedStats({ name, totals, skills = [] }) {
   render();
   renderSheet();
   renderDuel();
-  writeLog(`${piece.stats.name} 능력치${skills.length ? `와 스킬 ${skills.length}개` : ""}를 엑셀에서 가져왔습니다.`, "↥");
+  writeLog(`${piece.stats.name} 능력치${skills.length ? `와 스킬 ${skills.length}개` : ""}를 엑셀에서 가져왔어.`, "↥");
 }
 
 async function importStatsFromFile(file) {
   if (!file) return;
   if (!window.XLSX) {
-    writeLog("엑셀 읽기 도구를 불러오지 못했습니다. 인터넷 연결 후 새로고침해 주세요.", "!");
+    writeLog("엑셀 읽기 도구를 불러오지 못했어. 인터넷 연결 후 새로고침해.", "!");
     return;
   }
 
@@ -1457,12 +1457,12 @@ async function importStatsFromFile(file) {
     const workbook = XLSX.read(buffer, { type: "array", cellFormula: true, cellDates: false });
     const parsed = extractTotalsFromWorkbook(workbook);
     if (!Object.keys(parsed.totals).length && !parsed.skills.length) {
-      writeLog("엑셀에서 합계 능력치나 스킬 값을 찾지 못했습니다.", "!");
+      writeLog("엑셀에서 합계 능력치나 스킬 값을 찾지 못했어.", "!");
       return;
     }
     applyImportedStats(parsed);
   } catch {
-    writeLog("엑셀 파일을 읽지 못했습니다.", "!");
+    writeLog("엑셀 파일을 읽지 못했어.", "!");
   } finally {
     sheetImportFile.value = "";
   }
@@ -1526,7 +1526,7 @@ function endSkillDrag(event) {
 function addUnit(type) {
   const empty = findEmptyCell();
   if (!empty) {
-    writeLog("빈 칸이 없습니다.", "!");
+    writeLog("빈 칸이 없어.", "!");
     return;
   }
 
@@ -1534,7 +1534,7 @@ function addUnit(type) {
     const added = obstacle(empty.x, empty.y);
     units.push(added);
     selectedUnitId = added.id;
-    writeLog("장애물을 추가했습니다.", "+");
+    writeLog("장애물을 추가했어.", "+");
   } else {
     idCounter += 1;
     const label = type === "enemy" ? getNextExtraEnemyLabel() : "A";
@@ -1588,7 +1588,7 @@ function getImageTimestamp() {
 
 async function captureBoardImage() {
   if (!window.html2canvas) {
-    writeLog("이미지 캡처 도구를 불러오지 못했습니다. 새로고침 후 다시 시도하세요.", "!");
+    writeLog("이미지 캡처 도구를 불러오지 못했어. 새로고침 후 다시 시도해.", "!");
     return;
   }
 
@@ -1614,12 +1614,12 @@ async function captureBoardImage() {
     const copied = await copyImageToClipboard(blob);
     writeLog(
       copied
-        ? "중앙 전투판 이미지를 다운로드하고 클립보드에 복사했습니다."
-        : "중앙 전투판 이미지를 다운로드했습니다. 클립보드 복사는 브라우저 권한 때문에 실패했습니다.",
+        ? "중앙 전투판 이미지를 다운로드하고 클립보드에 복사했어."
+        : "중앙 전투판 이미지를 다운로드했어. 클립보드 복사는 브라우저 권한 때문에 실패했어.",
       "▣"
     );
   } catch {
-    writeLog("이미지 저장에 실패했습니다.", "!");
+    writeLog("이미지 저장에 실패했어.", "!");
   } finally {
     captureMapImage.disabled = false;
   }
@@ -1627,11 +1627,11 @@ async function captureBoardImage() {
 
 async function captureExplorationBoardImage() {
   if (!window.html2canvas) {
-    addExplorationLog("이미지 캡처 도구를 불러오지 못했습니다. 새로고침 후 다시 시도하세요.");
+    addExplorationLog("이미지 캡처 도구를 불러오지 못했어. 새로고침 후 다시 시도해.");
     return;
   }
   if (!explorationState.built) {
-    addExplorationLog("먼저 탐험판을 생성하세요.");
+    addExplorationLog("먼저 탐험판을 생성해.");
     return;
   }
 
@@ -1658,11 +1658,11 @@ async function captureExplorationBoardImage() {
     const copied = await copyImageToClipboard(blob);
     addExplorationLog(
       copied
-        ? "진행판 이미지를 다운로드하고 클립보드에 복사했습니다."
-        : "진행판 이미지를 다운로드했습니다. 클립보드 복사는 브라우저 권한 문제로 실패했습니다."
+        ? "진행판 이미지를 다운로드하고 클립보드에 복사했어."
+        : "진행판 이미지를 다운로드했어. 클립보드 복사는 브라우저 권한 문제로 실패했어."
     );
   } catch {
-    addExplorationLog("이미지 저장에 실패했습니다.");
+    addExplorationLog("이미지 저장에 실패했어.");
   } finally {
     captureExplorationImage.disabled = false;
   }
@@ -1733,9 +1733,9 @@ function renderDuel() {
 
   if (!ready) {
     duelTitle.textContent = "대기 중";
-    duelUnits.innerHTML = `<p>적 유닛 위로 드래그하면 판정 대결이 준비됩니다.</p>`;
+    duelUnits.innerHTML = `<p>적 유닛 위로 드래그하면 판정 대결이 준비돼.</p>`;
     duelStats.innerHTML = "";
-    duelResult.innerHTML = `<span>공격자와 방어자의 능력치를 각각 선택하세요.</span>`;
+    duelResult.innerHTML = `<span>공격자와 방어자의 능력치를 각각 선택해.</span>`;
     return;
   }
 
@@ -1745,7 +1745,7 @@ function renderDuel() {
       <div class="duel-card"><small>공격자</small><b>${attacker.stats.name}</b></div>
       <div class="duel-card"><small>방어자</small><b>${defender.stats.name}</b></div>
     `
-    : `<p>적 유닛 위로 드래그하면 판정 대결이 준비됩니다.</p>`;
+    : `<p>적 유닛 위로 드래그하면 판정 대결이 준비돼.</p>`;
 
   const statButtons = (side, activeKey) => [
     ...PRIMARY_STATS.map(([key, label]) => ({ key, label })),
@@ -1772,7 +1772,7 @@ function renderDuel() {
   });
 
   if (!duel?.result) {
-    duelResult.innerHTML = `<span>공격자와 방어자 능력치를 각각 선택하세요.</span>`;
+    duelResult.innerHTML = `<span>공격자와 방어자 능력치를 각각 선택해.</span>`;
     return;
   }
 
@@ -1940,13 +1940,13 @@ function sendDiscordRoll(attacker, defender, result, skillName) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content, username: "TRPG Battle Board" })
   }).catch(() => {
-    writeLog("디스코드 출력에 실패했습니다. 웹훅 URL을 확인하세요.", "!");
+    writeLog("디스코드 출력에 실패했어. 웹훅 URL을 확인해.", "!");
   });
 }
 
 function deleteDraggedUnit(piece) {
   if (piece.type === "player") {
-    writeLog("플레이어 말은 삭제할 수 없습니다.", "!");
+    writeLog("플레이어 말은 삭제할 수 없어.", "!");
     return;
   }
 
@@ -2137,7 +2137,7 @@ function renderSaveList() {
   if (!saves.length) {
     selectedSaveId = null;
     targets.forEach((target) => {
-      target.innerHTML = `<div class="empty-save">저장된 기록이 없습니다.</div>`;
+      target.innerHTML = `<div class="empty-save">저장된 기록이 없어.</div>`;
     });
     return;
   }
@@ -2215,7 +2215,7 @@ function overwriteSelectedSave() {
 
 function requestLoadMap() {
   if (!selectedSaveId) {
-    writeLog("불러올 저장 기록을 선택하세요.", "!");
+    writeLog("불러올 저장 기록을 선택해.", "!");
     return;
   }
 
@@ -2411,7 +2411,7 @@ board.addEventListener("contextmenu", (event) => {
   event.preventDefault();
   event.stopPropagation();
   openUnitStatus(pieceElement.dataset.id);
-  writeLog("선택한 유닛의 임시 상태창을 열었습니다.", "◆");
+  writeLog("선택한 유닛의 임시 상태창을 열었어.", "◆");
 });
 
 unitSheet.addEventListener("input", syncSheetToUnit);
@@ -2468,4 +2468,4 @@ renderSheet();
 renderDuel();
 buildExplorationFromControls();
 showMode("exploration");
-writeLog("전투 보드를 열고 맵을 생성하거나 저장된 맵을 불러오세요.", "↻");
+writeLog("전투 보드를 열고 맵을 생성하거나 저장된 맵을 불러와.", "↻");

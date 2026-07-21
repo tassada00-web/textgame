@@ -74,7 +74,7 @@ const RIA_BAG = {
     { name: "가죽 주머니", note: "무언가 담을 수 있다.", tags: ["가방"] },
     { name: "고블린 대장 몽둥이(부실해지기시작)", note: "+3데미지\n기습하는 경우 기절" },
     { name: "가죽 손목 보호대", note: "낡았지만 튼튼한 가죽 보호대. 착용 시 방어력 소폭 상승" },
-    { name: "여성용 경량 가죽 갑옷", note: "가슴과 복부를 보호하는 가죽 갑옷. 찢어진 부분이 있지만 수선하면 사용할 수 있습니다." },
+    { name: "여성용 경량 가죽 갑옷", note: "가슴과 복부를 보호하는 가죽 갑옷. 찢어진 부분이 있지만 수선하면 사용할 수 있어." },
     { name: "모험가 부츠", note: "튼튼한 가죽 부츠." },
     { name: "소드 오프 샷건", note: "근접사격 2발 소모. 힘다이스 25% 이하 시 넘어짐 자신에게 부여" },
   ],
@@ -93,8 +93,8 @@ const RIA_BAG = {
     { name: "화염 탄알", quantity: 10, note: "6데미지+지속화염" },
     { name: "강철 탄알", quantity: 35, note: "10데미지" },
     { name: "녹슨 탄알", quantity: 4, note: "6데미지" },
-    { name: "은반지", note: "단순한 디자인의 은반지. 안쪽에 이니셜 'J & M'이 새겨져 있습니다. 상점 판매가 약 40페니 예상" },
-    { name: "고블린의 보물 지도 조각 A", note: "다른 조각들과 합치면 고블린 소굴 깊은 곳에 숨겨진 무언가의 위치를 알 수 있습니다." },
+    { name: "은반지", note: "단순한 디자인의 은반지. 안쪽에 이니셜 'J & M'이 새겨져 있어. 상점 판매가 약 40페니 예상" },
+    { name: "고블린의 보물 지도 조각 A", note: "다른 조각들과 합치면 고블린 소굴 깊은 곳에 숨겨진 무언가의 위치를 알 수 있어." },
   ],
   quest: [],
 };
@@ -290,7 +290,7 @@ function createNewGame() {
     exploration: createDefaultExplorationShell(),
     characters,
     combat: null,
-    logs: ["새 RPG 병합 앱을 시작했습니다."],
+    logs: ["새 RPG 병합 앱을 시작했어."],
   };
 }
 
@@ -374,7 +374,7 @@ function restoreCoreSessionFromCharacter(character = getActiveCharacter()) {
 
 function saveGame(silent = false) {
   syncCoreSessionToCharacter();
-  if (!silent) addLog("저장했습니다.");
+  if (!silent) addLog("저장했어.");
   localStorage.setItem(SAVE_KEY, JSON.stringify(game));
 }
 
@@ -877,7 +877,7 @@ function renderPartySlot(member, index) {
           <div class="slot-name">
             <span class="tiny-label">Slot ${index + 1}</span>
             <strong>비어 있음</strong>
-            <p class="slot-meta">엑셀 파일로 동료를 유지할 수 있습니다.</p>
+            <p class="slot-meta">엑셀 파일로 동료를 유지할 수 있어.</p>
           </div>
         </div>
         <div class="slot-actions">
@@ -1004,7 +1004,7 @@ function renderStatusMainBoard() {
         <p class="section-kicker">Main Characters</p>
         <h2>메인 캐릭터</h2>
       </div>
-      <p>상태창에서 볼 메인 캐릭터를 선택하세요. 각 캐릭터는 자기 이야기, 저장 데이터, 파티 슬롯을 따로 유지합니다.</p>
+      <p>상태창에서 볼 메인 캐릭터를 선택해. 각 캐릭터는 자기 이야기, 저장 데이터, 파티 슬롯을 따로 유지해.</p>
     </section>
     <section class="main-character-list">
       ${characters.map((character) => renderMainCharacterCard(character)).join("")}
@@ -1130,7 +1130,7 @@ function renderBoardStatusPanel() {
         <strong>${escapeHtml(character.name)} 파티</strong>
         <p>참가 파티원 ${activeMembers.length}/3 · 장애물 ${game.exploration.obstacles.length}개</p>
       </article>
-      <div class="board-log"><span>◆</span><p>인접 칸을 선택하면 파티 전체가 이동합니다.</p></div>
+      <div class="board-log"><span>◆</span><p>인접 칸을 선택하면 파티 전체가 이동해.</p></div>
     `;
     return;
   }
@@ -1140,14 +1140,14 @@ function renderBoardStatusPanel() {
     <article class="board-info-card">
       <span class="tiny-label">현재 턴</span>
       <strong>${escapeHtml(current?.name || "대기")}</strong>
-      <p>${current ? `HP ${current.hp}/${current.maxHp} · SP ${current.stamina}/${current.maxStamina} · 속도 ${current.stats.speed}` : "전투원이 없습니다."}</p>
+      <p>${current ? `HP ${current.hp}/${current.maxHp} · SP ${current.stamina}/${current.maxStamina} · 속도 ${current.stats.speed}` : "전투원이 없어."}</p>
     </article>
     <article class="board-info-card">
       <span class="tiny-label">선택 말</span>
       <strong>${escapeHtml(selected?.name || "선택 없음")}</strong>
-      <p>${selected ? `${selected.side === "enemy" ? "적군" : "아군"} · ${getCombatantLabel(selected)} · 데미지 ${selected.stats.damage || 0} · 방어 ${selected.stats.armor || 0}` : "말을 선택하세요."}</p>
+      <p>${selected ? `${selected.side === "enemy" ? "적군" : "아군"} · ${getCombatantLabel(selected)} · 데미지 ${selected.stats.damage || 0} · 방어 ${selected.stats.armor || 0}` : "말을 선택해."}</p>
     </article>
-    <div class="board-log"><span>⚔</span><p>주황 칸은 이동 가능, 붉은 칸은 공격 대상입니다.</p></div>
+    <div class="board-log"><span>⚔</span><p>주황 칸은 이동 가능, 붉은 칸은 공격 대상이야.</p></div>
   `;
 }
 
@@ -1205,7 +1205,7 @@ function startCombat() {
   game.mode = "combat";
   selectedCombatantId = getCurrentActor()?.id ?? null;
   selectedTargetId = getFirstTargetId();
-  addLog("전투가 시작되었습니다. 속도 동률은 각자의 속도 주사위로 순서를 고정합니다.");
+  addLog("전투가 시작됐어. 속도 동률은 각자의 속도 주사위로 순서를 고정해.");
   saveGame(true);
   renderAll();
   syncGameSystemFrame({ openBattle: true, reason: "combat-start" });
@@ -1251,7 +1251,7 @@ function makeEnemy(name, x, y, index) {
       armor: index,
     },
     state: createState(),
-    skills: [{ name: "난폭한 공격", body: "힘으로 공격합니다.", tags: ["공격"], stat: "strength" }],
+    skills: [{ name: "난폭한 공격", body: "힘으로 공격해.", tags: ["공격"], stat: "strength" }],
   };
   return makeCombatantFromEntity(entity, "enemy", { source: "sample", label: String(index), x, y });
 }
@@ -1285,7 +1285,7 @@ function rebuildInitiative(reason = "속도 재계산") {
   game.combat.turnIndex = 0;
   selectedCombatantId = getCurrentActor()?.id ?? selectedCombatantId;
   selectedTargetId = getFirstTargetId();
-  addLog(`${reason}: 턴 순서를 확정했습니다.`);
+  addLog(`${reason}: 턴 순서를 확정했어.`);
 }
 
 function groupBy(items, keyFn) {
@@ -1315,7 +1315,7 @@ function getFirstTargetId() {
 function renderTurnList() {
   const target = document.getElementById("turnList");
   if (!game.combat) {
-    target.innerHTML = `<p class="small-muted">전투가 시작되면 속도 순서가 표시됩니다.</p>`;
+    target.innerHTML = `<p class="small-muted">전투가 시작되면 속도 순서가 표시돼.</p>`;
     return;
   }
   const current = getCurrentActor();
@@ -1443,7 +1443,7 @@ function commitTemporaryUnitStatus(unit) {
     }
   }
 
-  if (updated) addLog(`${unit.name} 임시 상태창의 HP/SP를 본 상태창에 반영했습니다.`);
+  if (updated) addLog(`${unit.name} 임시 상태창의 HP/SP를 본 상태창에 반영했어.`);
   return updated;
 }
 
@@ -1516,7 +1516,7 @@ function renderTemporaryUnitStatus(unit) {
               <span>${escapeHtml(getTemporaryUnitStatLabel(skill.stat))}</span>
               ${skill.desc ? `<p>${escapeHtml(skill.desc)}</p>` : ""}
             </article>
-          `).join("") : `<p class="small-muted">등록된 스킬이 없습니다.</p>`}
+          `).join("") : `<p class="small-muted">등록된 스킬이 없어.</p>`}
         </section>
       </article>
     </section>
@@ -1666,7 +1666,7 @@ function renderPartySheet(character) {
   return `
     <section class="detail-card">
       <h2>${escapeHtml(character.name)}의 파티 슬롯</h2>
-      <p class="skill-body">탐험 중에는 파티가 한 묶음으로 움직이고, 전투 시작 시 참가 중인 슬롯이 개별 유닛으로 펼쳐집니다.</p>
+      <p class="skill-body">탐험 중에는 파티가 한 묶음으로 움직이고, 전투 시작 시 참가 중인 슬롯이 개별 유닛으로 펼쳐져.</p>
     </section>
     <section class="party-mini-layout">
       <div class="party-mini-nav">
@@ -1690,8 +1690,8 @@ function renderPartyMiniPage(member, index) {
     return `
       <article class="party-mini-page is-empty">
         <span class="tiny-label">Slot ${index + 1}</span>
-        <h2>등록된 파티원이 없습니다</h2>
-        <p class="skill-body">엑셀 파일을 가져오면 이 영역에 체력, 스테미나, 주능력치, 전투 능력치, 스킬이 미니 상태창으로 출력됩니다.</p>
+        <h2>등록된 파티원이 없어</h2>
+        <p class="skill-body">엑셀 파일을 가져오면 이 영역에 체력, 스테미나, 주능력치, 전투 능력치, 스킬이 미니 상태창으로 출력돼.</p>
         <label class="file-label">
           엑셀 가져오기
           <input type="file" accept=".xlsx,.xls" data-party-import="${index}" />
@@ -1736,7 +1736,7 @@ function renderPartyMiniPage(member, index) {
             <span>${escapeHtml(STAT_LABELS[skill.stat] || "판정")}</span>
             ${skill.body ? `<p>${escapeHtml(skill.body)}</p>` : ""}
           </article>
-        `).join("") : `<p class="small-muted">가져온 스킬이 없습니다.</p>`}
+        `).join("") : `<p class="small-muted">가져온 스킬이 없어.</p>`}
       </section>
     </article>
   `;
@@ -1777,7 +1777,7 @@ function renderCombatPanel() {
   const actor = getCurrentActor();
   const targets = game.combat.combatants.filter((combatant) => combatant.side !== actor?.side && combatant.hp > 0);
   if (!actor) {
-    panel.innerHTML = `<p class="small-muted">행동할 전투원이 없습니다.</p>`;
+    panel.innerHTML = `<p class="small-muted">행동할 전투원이 없어.</p>`;
     return;
   }
   if (!selectedTargetId || !targets.some((target) => target.id === selectedTargetId)) selectedTargetId = targets[0]?.id ?? null;
@@ -1910,7 +1910,7 @@ function checkCombatEnd() {
   const partyAlive = game.combat.combatants.some((combatant) => combatant.side === "party" && combatant.hp > 0);
   const enemyAlive = game.combat.combatants.some((combatant) => combatant.side === "enemy" && combatant.hp > 0);
   if (!partyAlive || !enemyAlive) {
-    addLog(enemyAlive ? "파티가 전투불능입니다." : "적을 모두 쓰러뜨렸습니다.");
+    addLog(enemyAlive ? "파티가 전투불능이야." : "적을 모두 쓰러뜨렸어.");
     return true;
   }
   return false;
@@ -1923,7 +1923,7 @@ function endCombat() {
   game.mode = "explore";
   selectedCombatantId = null;
   selectedTargetId = null;
-  addLog("전투를 종료하고 탐험 모드로 돌아왔습니다.");
+  addLog("전투를 종료하고 탐험 모드로 돌아왔어.");
   saveGame(true);
   renderAll();
   syncGameSystemFrame({ openBattle: false, reason: "combat-end" });
@@ -1963,7 +1963,7 @@ function addImportedCombatant(entity, side) {
   const combatant = makeCombatantFromEntity(entity, side, { source: "excel", label: side === "enemy" ? String(sideCount) : `A${sideCount}`, x: spot.x, y: spot.y });
   game.combat.combatants.push(combatant);
   rebuildInitiative(`${entity.name} 전투 참가`);
-  addLog(`${entity.name}을 ${side === "enemy" ? "적군" : "아군"} 전투원으로 추가했습니다.`);
+  addLog(`${entity.name}을 ${side === "enemy" ? "적군" : "아군"} 전투원으로 추가했어.`);
   saveGame(true);
   renderAll();
   syncGameSystemFrame({ openBattle: true, reason: "combatant-import" });
@@ -1988,7 +1988,7 @@ async function importPartyMember(file, index) {
   getActiveCharacter().partySlots[index] = member;
   activePartyPreviewIndex = index;
   activeTab = "party";
-  addLog(`${member.name}을 파티 슬롯 ${index + 1}에 등록했습니다.`);
+  addLog(`${member.name}을 파티 슬롯 ${index + 1}에 등록했어.`);
   saveGame(true);
   renderAll();
   syncGameSystemFrame({ openBattle: Boolean(game.combat), reason: "party-import" });
@@ -2047,7 +2047,7 @@ function readTotal(totals, key, fallback) {
 async function parseExcelFile(file) {
   if (!file) return null;
   if (!window.XLSX) {
-    addLog("엑셀 읽기 도구를 불러오지 못했습니다. 인터넷 연결 후 새로고침해 주세요.");
+    addLog("엑셀 읽기 도구를 불러오지 못했어. 인터넷 연결 후 새로고침해.");
     return null;
   }
   try {
@@ -2055,12 +2055,12 @@ async function parseExcelFile(file) {
     const workbook = XLSX.read(buffer, { type: "array", cellFormula: true, cellDates: false });
     const parsed = extractTotalsFromWorkbook(workbook);
     if (!Object.keys(parsed.totals).length && !parsed.skills.length) {
-      addLog("엑셀에서 합계 능력치나 스킬 값을 찾지 못했습니다.");
+      addLog("엑셀에서 합계 능력치나 스킬 값을 찾지 못했어.");
       return null;
     }
     return parsed;
   } catch {
-    addLog("엑셀 파일을 읽지 못했습니다.");
+    addLog("엑셀 파일을 읽지 못했어.");
     return null;
   }
 }
@@ -2205,7 +2205,7 @@ document.addEventListener("click", async (event) => {
     game.mode = "profile";
     selectedCombatantId = null;
     selectedTargetId = null;
-    addLog(`${getActiveCharacter().name} 이야기를 선택했습니다.`);
+    addLog(`${getActiveCharacter().name} 이야기를 선택했어.`);
     saveGame(true);
     renderAll();
     syncActiveCharacterBoardStateToFrame({ reason: "character-switch", migrateLegacy: true });
@@ -2241,13 +2241,13 @@ document.addEventListener("click", async (event) => {
   }
 
   if (event.target.closest("#resetButton")) {
-    openConfirm("초기화", "새 병합 앱의 저장 데이터를 초기화할까요? 원본 폴더는 건드리지 않습니다.", () => {
+    openConfirm("초기화", "새 병합 앱의 저장 데이터를 초기화할까? 원본 폴더는 건드리지 않아.", () => {
       localStorage.removeItem(SAVE_KEY);
       game = createNewGame();
       activeTab = "overview";
       activeBagCategory = BAG_CATEGORIES[0].key;
       closeTemporaryUnitStatus({ commit: false, rerender: false });
-      addLog("저장 데이터를 초기화했습니다.");
+      addLog("저장 데이터를 초기화했어.");
       renderAll();
       postGameSystemBoardState(null, "reset");
       syncGameSystemFrame({ openBattle: false, reason: "reset" });
@@ -2297,7 +2297,7 @@ document.addEventListener("click", async (event) => {
     const index = Number(partyClear.dataset.partyClear);
     getActiveCharacter().partySlots[index] = null;
     if (activePartyPreviewIndex === index) activePartyPreviewIndex = 0;
-    addLog(`파티 슬롯 ${index + 1}을 비웠습니다.`);
+    addLog(`파티 슬롯 ${index + 1}을 비웠어.`);
     saveGame(true);
     renderAll();
     syncGameSystemFrame({ openBattle: Boolean(game.combat), reason: "party-clear" });
@@ -2308,7 +2308,7 @@ document.addEventListener("click", async (event) => {
     const character = getActiveCharacter();
     getStatState(character, "hp").decrease = 0;
     getStatState(character, "stamina").decrease = 0;
-    addLog(`${character.name}의 체력과 스테미나를 회복했습니다.`);
+    addLog(`${character.name}의 체력과 스테미나를 회복했어.`);
     saveGame(true);
     renderAll();
     return;
