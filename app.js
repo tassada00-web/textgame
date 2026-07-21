@@ -71,29 +71,29 @@ const SHEET_STAT_LABELS = {
 const RIA_BAG = {
   money: 0,
   equipment: [
-    { name: "가죽 주머니", note: "무언가 담을 수 있다.", tags: ["가방"] },
-    { name: "고블린 대장 몽둥이(부실해지기시작)", note: "+3데미지\n기습하는 경우 기절" },
-    { name: "가죽 손목 보호대", note: "낡았지만 튼튼한 가죽 보호대. 착용 시 방어력 소폭 상승" },
-    { name: "여성용 경량 가죽 갑옷", note: "가슴과 복부를 보호하는 가죽 갑옷. 찢어진 부분이 있지만 수선하면 사용할 수 있어." },
-    { name: "모험가 부츠", note: "튼튼한 가죽 부츠." },
-    { name: "소드 오프 샷건", note: "근접사격 2발 소모. 힘다이스 25% 이하 시 넘어짐 자신에게 부여" },
+    { name: "가죽 주머니", note: "무언가 담을 수 있어.", tags: ["가방"] },
+    { name: "고블린 대장 몽둥이(부실해지기시작)", note: "+3데미지야.\n기습하면 기절시켜." },
+    { name: "가죽 손목 보호대", note: "낡았지만 튼튼한 가죽 보호대야. 착용하면 방어력이 조금 올라." },
+    { name: "여성용 경량 가죽 갑옷", note: "가슴과 복부를 보호하는 가죽 갑옷이야. 찢어진 부분이 있지만 수선하면 사용할 수 있어." },
+    { name: "모험가 부츠", note: "튼튼한 가죽 부츠야." },
+    { name: "소드 오프 샷건", note: "근접 사격에 2발을 소모해. 힘 다이스가 25% 이하이면 자신에게 넘어짐을 부여해." },
   ],
   consumables: [
-    { name: "밧줄", note: "무언가 묶을 수 있다." },
-    { name: "정체불명의 열쇠", note: "녹슬었지만 튼튼해 보임(폐광)" },
-    { name: "소형 마나 포션", quantity: 1, note: "푸른색 액체가 담긴 작은 유리병. MP 15 회복" },
-    { name: "여행자용 건빵", note: "딱딱하게 굳은 건빵 두 조각. 비상 식량" },
-    { name: "야수 각성 주사기", quantity: 2, note: "사용 시 일시적으로 힘과 민첩이 폭발적으로 상승하지만, 4턴 후 고통 및 탈진 부여" },
-    { name: "미완성 주문서(환각 쾌락 강화 - 사용 불가)" },
+    { name: "밧줄", note: "무언가 묶을 수 있어." },
+    { name: "정체불명의 열쇠", note: "녹슬었지만 튼튼해 보여(폐광)." },
+    { name: "소형 마나 포션", quantity: 1, note: "푸른색 액체가 담긴 작은 유리병이야. MP 15를 회복해." },
+    { name: "여행자용 건빵", note: "딱딱하게 굳은 건빵 두 조각이야. 비상 식량으로 쓸 수 있어." },
+    { name: "야수 각성 주사기", quantity: 2, note: "사용하면 일시적으로 힘과 민첩이 폭발적으로 올라. 4턴 후 고통과 탈진을 부여해." },
+    { name: "미완성 주문서(환각 쾌락 강화 - 아직 못 써)" },
     { name: "조악한 환각 최음제", quantity: 1 },
   ],
   materials: [
-    { name: "거친 가죽 조각", quantity: 2, note: "재봉 기초 재료" },
-    { name: "열쇠 꾸러미", note: "최면술사에서 획득" },
-    { name: "화염 탄알", quantity: 10, note: "6데미지+지속화염" },
-    { name: "강철 탄알", quantity: 35, note: "10데미지" },
-    { name: "녹슨 탄알", quantity: 4, note: "6데미지" },
-    { name: "은반지", note: "단순한 디자인의 은반지. 안쪽에 이니셜 'J & M'이 새겨져 있어. 상점 판매가 약 40페니 예상" },
+    { name: "거친 가죽 조각", quantity: 2, note: "재봉 기초 재료야." },
+    { name: "열쇠 꾸러미", note: "최면술사에게서 얻었어." },
+    { name: "화염 탄알", quantity: 10, note: "6데미지에 지속 화염이 붙어." },
+    { name: "강철 탄알", quantity: 35, note: "10데미지를 줘." },
+    { name: "녹슨 탄알", quantity: 4, note: "6데미지를 줘." },
+    { name: "은반지", note: "단순한 디자인의 은반지야. 안쪽에 이니셜 'J & M'이 새겨져 있어. 상점에 팔면 약 40페니쯤 될 것 같아." },
     { name: "고블린의 보물 지도 조각 A", note: "다른 조각들과 합치면 고블린 소굴 깊은 곳에 숨겨진 무언가의 위치를 알 수 있어." },
   ],
   quest: [],
@@ -101,17 +101,17 @@ const RIA_BAG = {
 
 const HAYUL_BAG = {
   money: 97,
-  equipment: [{ name: "낡은 고블린 단검", note: "무기, 힘 2" }],
+  equipment: [{ name: "낡은 고블린 단검", note: "무기야. 힘 +2." }],
   consumables: [
-    { name: "붕대", quantity: 2, note: "출혈 상태이상 해제/감소 가능" },
-    { name: "조잡한 회복약", quantity: 1, note: "사용 시 체력 5 회복, 단 20% 확률로 구역질 상태이상" },
+    { name: "붕대", quantity: 2, note: "출혈 상태이상을 해제하거나 줄일 수 있어." },
+    { name: "조잡한 회복약", quantity: 1, note: "사용하면 체력 5를 회복해. 단 20% 확률로 구역질 상태이상이 걸려." },
     { name: "하급 해독제", quantity: 2 },
     { name: "시원한 과일수", quantity: 3, tags: ["현재 보급"] },
     { name: "질 좋은 횃불", quantity: 3, tags: ["현재 보급"] },
     { name: "가벼운 붕대", quantity: 3, tags: ["현재 보급"] },
   ],
   materials: [{ name: "마력석 조각", quantity: 1 }],
-  quest: [{ name: "맑은 액체 유리병", quantity: 1, note: "정체 불명 - 감별 필요" }],
+  quest: [{ name: "맑은 액체 유리병", quantity: 1, note: "정체 불명이야. 감별이 필요해." }],
 };
 
 const BASE_CHARACTERS = [
@@ -155,13 +155,13 @@ const BASE_CHARACTERS = [
     ],
     bag: { ...RIA_BAG },
     skills: [
-      { name: "총사", body: "힘다이스 없이 탄알효과만 발동", tags: ["직업"], stat: "precision" },
-      { name: "개머리판 공격 1t", body: "힘 50% 값만큼 피해, 힘 값 2배 차이경우 넉백", tags: ["공격"], stat: "strength" },
-      { name: "소매치기", body: "후퇴 판정 전투 종료 후 일부분 보상 획득", tags: ["탐색"], stat: "precision" },
-      { name: "지형 활용 (1회 판정)", body: "주변 환경 활용 시 회피 판정 +2", tags: ["회피", "+2"], stat: "speed" },
-      { name: "방해 사격", body: "(정밀 vs 건강, SP 2 소모) 적 1체의 다음 2턴까지 행동에 -2", tags: ["SP 2", "디버프"], stat: "precision" },
-      { name: "더블탭", body: "(SP 2 소모) 두번 공격. 명중률 -2", tags: ["SP 2", "공격"], stat: "precision" },
-      { name: "탄알", body: "철제 탄알 31 / 8데미지", tags: ["소모품", "31"], stat: "precision" },
+      { name: "총사", body: "힘 다이스 없이 탄알 효과만 발동해.", tags: ["직업"], stat: "precision" },
+      { name: "개머리판 공격 1t", body: "힘 50% 값만큼 피해를 줘. 힘 값이 2배 차이 나면 넉백해.", tags: ["공격"], stat: "strength" },
+      { name: "소매치기", body: "후퇴 판정으로 전투를 끝낸 뒤 보상 일부를 획득해.", tags: ["탐색"], stat: "precision" },
+      { name: "지형 활용 (1회 판정)", body: "주변 환경을 활용하면 회피 판정 +2를 받아.", tags: ["회피", "+2"], stat: "speed" },
+      { name: "방해 사격", body: "(정밀 vs 건강, SP 2 소모) 적 1체의 다음 2턴 행동에 -2를 줘.", tags: ["SP 2", "디버프"], stat: "precision" },
+      { name: "더블탭", body: "(SP 2 소모) 두 번 공격해. 명중률은 -2야.", tags: ["SP 2", "공격"], stat: "precision" },
+      { name: "탄알", body: "철제 탄알 31개야. 8데미지를 줘.", tags: ["소모품", "31"], stat: "precision" },
     ],
   },
   {
@@ -204,10 +204,10 @@ const BASE_CHARACTERS = [
     ],
     bag: { money: 0, equipment: [], consumables: [], materials: [], quest: [] },
     skills: [
-      { name: "마나볼", body: "지능 결과값 +4", tags: ["마법 1", "공격"], stat: "intelligence" },
-      { name: "올라타기", body: "민첩 다이스 1", tags: ["SP 2", "이동"], stat: "speed" },
-      { name: "늑대 리듬 동조", body: "동조 성공 시 매턴마다 1 SP 회복.", tags: ["회복", "동조"], stat: "charm" },
-      { name: "야수의 정수(패시브)", body: "건강 +4, 속도 -3", tags: ["패시브", "능력치"], stat: "vitality" },
+      { name: "마나볼", body: "지능 결과값에 +4를 더해.", tags: ["마법 1", "공격"], stat: "intelligence" },
+      { name: "올라타기", body: "민첩 다이스를 1번 굴려.", tags: ["SP 2", "이동"], stat: "speed" },
+      { name: "늑대 리듬 동조", body: "동조에 성공하면 매 턴마다 1 SP를 회복해.", tags: ["회복", "동조"], stat: "charm" },
+      { name: "야수의 정수(패시브)", body: "건강 +4, 속도 -3을 적용해.", tags: ["패시브", "능력치"], stat: "vitality" },
     ],
   },
   {
@@ -250,11 +250,11 @@ const BASE_CHARACTERS = [
     ],
     bag: { ...HAYUL_BAG },
     skills: [
-      { name: "여우비lv2", body: "주문횟수 1 소모. 지능다이스로 아군 회복 및 적 전체 피해 +2.", tags: ["마법 1"], stat: "intelligence" },
-      { name: "거울 파편 장벽", body: "주문횟수 1 소모. 아군 전체가 공격받을 때 지능결과 /2 만큼 1회 차단.", tags: ["마법 1"], stat: "intelligence" },
-      { name: "수호의 빛", body: "패시브. 아군 치명타 피격 시 전투당 1회 장벽 자동 발동.", tags: ["패시브"], stat: "wisdom" },
-      { name: "거울 니샤 효과", body: "회복 마법 효과량 +2. 매 턴 시작 시 본인 체력 1 자동 회복.", tags: ["장비 효과"], stat: "wisdom" },
-      { name: "거울 니샤 효과", body: "인접 아군이 출혈 상태일 경우 회복 마법으로 출혈 1스택을 추가 제거.", tags: ["장비 효과"], stat: "wisdom" },
+      { name: "여우비lv2", body: "주문 횟수 1을 소모해. 지능 다이스로 아군을 회복하고 적 전체 피해에 +2를 줘.", tags: ["마법 1"], stat: "intelligence" },
+      { name: "거울 파편 장벽", body: "주문 횟수 1을 소모해. 아군 전체가 공격받을 때 지능 결과 /2만큼 1회 차단해.", tags: ["마법 1"], stat: "intelligence" },
+      { name: "수호의 빛", body: "패시브야. 아군이 치명타를 맞으면 전투당 1회 장벽이 자동 발동해.", tags: ["패시브"], stat: "wisdom" },
+      { name: "거울 니샤 효과", body: "회복 마법 효과량 +2를 받아. 매 턴 시작 시 본인 체력 1을 자동 회복해.", tags: ["장비 효과"], stat: "wisdom" },
+      { name: "거울 니샤 효과", body: "인접 아군이 출혈 상태이면 회복 마법으로 출혈 1스택을 추가 제거해.", tags: ["장비 효과"], stat: "wisdom" },
     ],
   },
 ];
@@ -1147,7 +1147,7 @@ function renderBoardStatusPanel() {
       <strong>${escapeHtml(selected?.name || "선택 없음")}</strong>
       <p>${selected ? `${selected.side === "enemy" ? "적군" : "아군"} · ${getCombatantLabel(selected)} · 데미지 ${selected.stats.damage || 0} · 방어 ${selected.stats.armor || 0}` : "말을 선택해."}</p>
     </article>
-    <div class="board-log"><span>⚔</span><p>주황 칸은 이동 가능, 붉은 칸은 공격 대상이야.</p></div>
+    <div class="board-log"><span>⚔</span><p>주황 칸은 이동할 수 있고, 붉은 칸은 공격 대상이야.</p></div>
   `;
 }
 

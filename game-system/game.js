@@ -199,7 +199,7 @@ function buildExplorationFromControls() {
 
   explorationState = generateExplorationState(preset, forkCount, goalCount);
   closeExplorationSetupModal();
-  addExplorationLog(`탐험판 [${explorationState.cols} x ${explorationState.rows}] 생성 완료.`);
+  addExplorationLog(`탐험판 [${explorationState.cols} x ${explorationState.rows}]을 생성했어.`);
   renderExploration();
 }
 
@@ -795,7 +795,7 @@ function applyCoreSyncToBattle(payload) {
 
   showMode("battle");
   const orderText = getCoreOrderSummary(payload);
-  writeLog(orderText || `Core party synced: ${syncedUnits.length} units.`, "*");
+  writeLog(orderText || `핵심 파티 ${syncedUnits.length}명을 동기화했어.`, "*");
 }
 
 function handleCoreSyncMessage(event) {
@@ -1196,7 +1196,7 @@ function isEnemy(attacker, target) {
 
 function attack(attacker, defender) {
   prepareDuel(attacker, defender);
-  writeLog(`${attacker.stats.name} → ${defender.stats.name} 판정 대결 준비.`, "⚔");
+  writeLog(`${attacker.stats.name} → ${defender.stats.name} 판정 대결을 준비했어.`, "⚔");
 }
 
 function highlightTargets(piece) {
@@ -1473,7 +1473,7 @@ function removeSelectedUnit() {
   if (!piece || piece.type === "player") return;
 
   units = units.filter((item) => item.id !== piece.id);
-  writeLog(`${piece.stats.name} 삭제 완료.`, "×");
+  writeLog(`${piece.stats.name}을 삭제했어.`, "×");
   selectedUnitId = null;
   render();
   renderSheet();
@@ -1516,7 +1516,7 @@ function endSkillDrag(event) {
 
   if (piece && outsideDetail) {
     const removed = piece.stats.skills.splice(skillDrag.index, 1)[0];
-    writeLog(`${removed.name} 스킬 삭제.`, "×");
+    writeLog(`${removed.name} 스킬을 삭제했어.`, "×");
     renderSheet();
   }
 
@@ -1542,7 +1542,7 @@ function addUnit(type) {
     const added = unit(type, label, empty.x, empty.y, name, {});
     units.push(added);
     selectedUnitId = added.id;
-    writeLog(`${name} 추가 완료.`, "+");
+    writeLog(`${name}을 추가했어.`, "+");
   }
 
   render();
@@ -1733,7 +1733,7 @@ function renderDuel() {
 
   if (!ready) {
     duelTitle.textContent = "대기 중";
-    duelUnits.innerHTML = `<p>적 유닛 위로 드래그하면 판정 대결이 준비돼.</p>`;
+    duelUnits.innerHTML = `<p>적 유닛 위로 드래그하면 판정 대결 미니바가 열려.</p>`;
     duelStats.innerHTML = "";
     duelResult.innerHTML = `<span>공격자와 방어자의 능력치를 각각 선택해.</span>`;
     return;
@@ -1745,7 +1745,7 @@ function renderDuel() {
       <div class="duel-card"><small>공격자</small><b>${attacker.stats.name}</b></div>
       <div class="duel-card"><small>방어자</small><b>${defender.stats.name}</b></div>
     `
-    : `<p>적 유닛 위로 드래그하면 판정 대결이 준비돼.</p>`;
+    : `<p>적 유닛 위로 드래그하면 판정 대결 미니바가 열려.</p>`;
 
   const statButtons = (side, activeKey) => [
     ...PRIMARY_STATS.map(([key, label]) => ({ key, label })),
@@ -1840,7 +1840,7 @@ function rollDuel() {
 
   const usedSkill = getActiveSkillName();
   clearActiveSkill();
-  writeLog(damage.amount > 0 ? `${damage.text} 적용.` : damage.text, "⚔");
+  writeLog(damage.amount > 0 ? `${damage.text} 적용했어.` : damage.text, "⚔");
   sendDiscordRoll(attacker, defender, duel.result, usedSkill);
   render();
   renderSheet();
@@ -1953,7 +1953,7 @@ function deleteDraggedUnit(piece) {
   units = units.filter((item) => item.id !== piece.id);
   if (selectedUnitId === piece.id) selectedUnitId = null;
   if (duel?.attackerId === piece.id || duel?.defenderId === piece.id) duel = null;
-  writeLog(`${piece.stats.name} 삭제 완료.`, "×");
+  writeLog(`${piece.stats.name}을 삭제했어.`, "×");
 }
 
 function openMapModal() {
@@ -1998,7 +1998,7 @@ function buildMapFromForm(event) {
   duel = null;
   activeSkill = null;
   closeMapResetModal();
-  writeLog(`배틀맵 [${cols} x ${rows}] 생성 완료.`, "↻");
+  writeLog(`배틀맵 [${cols} x ${rows}]을 생성했어.`, "↻");
   render();
   renderSheet();
   renderDuel();
@@ -2087,7 +2087,7 @@ function applyMapOnlyChanges(event) {
   duel = null;
   activeSkill = null;
   closeEditMap();
-  writeLog(`맵만 수정 완료. [${cols} x ${rows}], 장애물 ${units.filter((piece) => piece.type === "obstacle").length}개`, "↻");
+  writeLog(`맵만 수정했어. [${cols} x ${rows}], 장애물 ${units.filter((piece) => piece.type === "obstacle").length}개`, "↻");
   render();
   renderSheet();
   renderDuel();
@@ -2192,9 +2192,9 @@ function createNewSave(event) {
   closeNameInput();
   renderSaveList();
   if (activeMode === "exploration") {
-    addExplorationLog(`${name} 저장 완료.`);
+    addExplorationLog(`${name}을 저장했어.`);
   } else {
-    writeLog(`${name} 저장 완료.`, "✓");
+    writeLog(`${name}을 저장했어.`, "✓");
   }
 }
 
@@ -2207,9 +2207,9 @@ function overwriteSelectedSave() {
   setSaves(saves.map((save) => save.id === selectedSaveId ? next : save));
   renderSaveList();
   if (activeMode === "exploration") {
-    addExplorationLog(`${target.name} 덮어쓰기 완료.`);
+    addExplorationLog(`${target.name}에 덮어썼어.`);
   } else {
-    writeLog(`${target.name} 덮어쓰기 완료.`, "✓");
+    writeLog(`${target.name}에 덮어썼어.`, "✓");
   }
 }
 
@@ -2233,9 +2233,9 @@ function loadSelectedSave() {
   const nextMode = save.activeMode ?? (save.exploration ? "exploration" : "battle");
   showMode(nextMode === "battle" ? "battle" : "exploration");
   if (activeMode === "exploration") {
-    addExplorationLog(`${save.name} 불러오기 완료.`);
+    addExplorationLog(`${save.name}을 불러왔어.`);
   } else {
-    writeLog(`${save.name} 불러오기 완료.`, "↩");
+    writeLog(`${save.name}을 불러왔어.`, "↩");
   }
 }
 
